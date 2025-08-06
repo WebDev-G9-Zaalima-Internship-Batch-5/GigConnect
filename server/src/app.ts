@@ -1,6 +1,9 @@
 import express, { Application } from "express";
 import cors, { CorsOptions } from "cors";
 import cookieParser from "cookie-parser";
+import { errorHandler } from "./middlewares/errorHandler.middleware.js";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./services/swagger.service.js";
 
 const app: Application = express();
 
@@ -28,4 +31,14 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
 
-export default app 
+// swagger route
+if (process.env.NODE_ENV === "development") {
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  console.log("Swagger docs available at /api-docs");
+}
+
+// routes
+
+// error handling
+app.use(errorHandler);
+export default app;

@@ -101,7 +101,7 @@
 | \_id              | ObjectId | Primary key                       | Primary                    |
 | gigId             | ObjectId | Reference to gigs                 | Compound with freelancerId |
 | freelancerId      | ObjectId | Reference to users (freelancer)   | Index                      |
-| coverLetter       | String   | Application cover letter          | -                          |
+| proposal          | String   | Application cover letter          | -                          |
 | proposedRate      | Number   | Freelancer's proposed rate        | -                          |
 | estimatedDuration | String   | Estimated completion time         | -                          |
 | status            | Enum     | 'pending', 'accepted', 'rejected' | Index                      |

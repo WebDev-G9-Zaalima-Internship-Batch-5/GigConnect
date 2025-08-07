@@ -1,5 +1,9 @@
 import { Schema, model, Document, Types } from "mongoose";
 
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import type { Secret, SignOptions } from "jsonwebtoken";
+
 export enum UserRole {
   CLIENT = "client",
   FREELANCER = "freelancer",
@@ -26,6 +30,7 @@ export interface IUser extends Document {
       longitude: number;
     };
   };
+  refreshToken: string;
   isVerified: boolean;
   isActive: boolean;
   lastLogin?: Date;
@@ -81,6 +86,10 @@ const UserSchema = new Schema<IUser>(
         longitude: { type: Number, required: true },
       },
     },
+    refreshToken: {
+      type: String,
+      default: "",
+    },
     isVerified: {
       type: Boolean,
       default: false,
@@ -102,5 +111,65 @@ const UserSchema = new Schema<IUser>(
 UserSchema.index({ "location.coordinates": "2dsphere" });
 UserSchema.index({ email: 1 });
 UserSchema.index({ role: 1 });
+
+UserSchema.pre<IUser>("save", async function (next) {
+  if (!this.isModified("password")) {
+    return next();
+  }
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
+
+// Method to check if the password is correct.
+UserSchema.methods.isPasswordCorrect = async function (
+  password: string
+): Promise<boolean> {
+  return await bcrypt.compare(password, this.password);
+};
+
+// Method to generate an access token.
+UserSchema.methods.generateAccessToken = function (): string {
+  const secret = process.env.ACCESS_TOKEN_SECRET as Secret;
+  const expiry = process.env.ACCESS_TOKEN_EXPIRY as SignOptions["expiresIn"];
+
+  if (!secret || !expiry) {
+    throw new Error(
+      "Missing access token secret or expiry environment variable."
+    );
+  }
+
+  return jwt.sign(
+    {
+      _id: this._id,
+      email: this.email,
+      role: this.role,
+    },
+    process.env.ACCESS_TOKEN_SECRET as string,
+    {
+      expiresIn: expiry,
+    }
+  );
+};
+
+// Method to generate a refresh token.
+UserSchema.methods.generateRefreshToken = function (): string {
+  const secret = process.env.REFRESH_TOKEN_SECRET as Secret;
+  const expiry = process.env.REFRESH_TOKEN_EXPIRY as SignOptions["expiresIn"];
+
+  if (!secret || !expiry) {
+    throw new Error(
+      "Missing refresh token secret or expiry environment variable."
+    );
+  }
+  return jwt.sign(
+    {
+      _id: this._id,
+    },
+    secret,
+    {
+      expiresIn: expiry,
+    }
+  );
+};
 
 export const User = model<IUser>("User", UserSchema);

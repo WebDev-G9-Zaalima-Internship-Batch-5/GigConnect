@@ -1,4 +1,4 @@
-import jwt, { JwtPayload, TokenExpiredError } from "jsonwebtoken";
+import jwt, { JwtPayload } from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 
 import { ApiError } from "../utils/ApiError.js";
@@ -6,67 +6,99 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 import { User } from "../models/user.model.js";
 import { IUser } from "../models/user.model.js";
+import { generateAccessAndRefreshTokens } from "../utils/token.utils.js";
+import crypto from "crypto";
 
-// Extend the Request interface to include the `user` property
-declare module "express" {
-  interface Request {
-    user?: Omit<IUser, "password" | "refreshToken">;
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
   }
 }
 
 export const verifyJWT = asyncHandler(
-  async (req: Request, _: Response, next: NextFunction) => {
-    const accessToken =
-      req.cookies?.accessToken ||
-      req.header("Authorization")?.replace("Bearer ", "");
-
-    if (!accessToken) {
-      throw new ApiError(
-        401,
-        "Unauthorized Request :: No access token :: verifyJWT, auth.middleware"
-      );
-    }
-
-    let decodedToken: JwtPayload | string;
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      decodedToken = jwt.verify(
-        accessToken,
+      const token =
+        req.cookies?.accessToken ||
+        req.header("Authorization")?.replace("Bearer ", "");
+
+      if (!token) {
+        throw new ApiError(401, "Unauthorized: No token provided.");
+      }
+
+      const decodedToken = jwt.verify(
+        token,
         process.env.ACCESS_TOKEN_SECRET as string
+      ) as JwtPayload;
+
+      const user = await User.findById(decodedToken?._id).select(
+        "-password -refreshTokens"
       );
-    } catch (error) {
-      if (error instanceof TokenExpiredError) {
+
+      if (!user) {
+        throw new ApiError(401, "Invalid access token.");
+      }
+
+      req.user = user;
+      return next();
+    } catch (error: any) {
+      if (error.name !== "TokenExpiredError") {
+        throw new ApiError(401, error?.message || "Invalid access token.");
+      }
+
+      // Handle expired access token by trying to refresh it
+      const incomingRefreshToken = req.cookies.refreshToken;
+      if (!incomingRefreshToken) {
         throw new ApiError(
           401,
-          "Access Token Expired :: verifyJWT, auth.middleware"
+          "Unauthorized: Access token expired, no refresh token provided."
         );
       }
 
-      throw new ApiError(
-        401,
-        "Invalid Access Token :: verifyJWT, auth.middleware"
+      const hashedRefreshToken = crypto
+        .createHash("sha256")
+        .update(incomingRefreshToken)
+        .digest("hex");
+
+      const user = await User.findOne({
+        "refreshTokens.token": hashedRefreshToken,
+      });
+
+      if (!user) {
+        throw new ApiError(
+          401,
+          "Unauthorized: Invalid or expired refresh token."
+        );
+      }
+
+      // Remove the old refresh token
+      user.refreshTokens = user.refreshTokens.filter(
+        (rt) => rt.token !== hashedRefreshToken
       );
-    }
 
-    if (!decodedToken || typeof decodedToken === "string") {
-      throw new ApiError(
-        401,
-        "Unauthorized Request :: Invalid access token :: verifyJWT, auth.middleware"
+      await user.save({ validateBeforeSave: false });
+
+      const { accessToken, refreshToken: newRefreshToken } =
+        await generateAccessAndRefreshTokens(user, req);
+
+      const cookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict" as const,
+      };
+
+      res.cookie("accessToken", accessToken, cookieOptions);
+      res.cookie("refreshToken", newRefreshToken, cookieOptions);
+
+      // Attach the user to the request and proceed
+      const refreshedUser = await User.findById(user._id).select(
+        "-password -refreshTokens"
       );
+      req.user = refreshedUser;
+      return next();
     }
-
-    const user = await User.findById(decodedToken._id).select(
-      "-password -refreshToken"
-    );
-
-    if (!user) {
-      throw new ApiError(
-        401,
-        "Invalid Access Token :: verifyJWT, auth.middleware"
-      );
-    }
-
-    req.user = user;
-    next();
   }
 );
 

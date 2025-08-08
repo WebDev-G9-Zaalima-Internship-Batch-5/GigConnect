@@ -9,34 +9,9 @@ import validator from "validator";
 import { UserRole } from "../models/user.model.js";
 import { sendVerificationEmail } from "../services/nodemailerd.service.js";
 import crypto from "crypto";
+import { generateAccessAndRefreshTokens } from "../utils/token.utils.js";
 
 type UserDoc = HydratedDocument<IUser, IUserMethods>;
-
-const generateAccessAndRefreshTokens = async (user: UserDoc) => {
-  try {
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
-
-    // Save refresh token in database.
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
-
-    return { accessToken, refreshToken };
-  } catch (error: any) {
-    throw new ApiError(
-      500,
-      `Something went wrong while generating access and refresh tokens: ${error.message}`
-    );
-  }
-};
-
-interface CloudinaryUploadResult {
-  secure_url: string;
-  url: string;
-  public_id: string;
-}
-
-const AVATAR_FOLDER_PATH = "avatars";
 
 const registerUser = asyncHandler(async (req: Request, res: Response) => {
   interface RegisterBody {
@@ -91,15 +66,13 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
 
   const verificationUrl = `${process.env.BACKEND_URL}/api/v1/users/verify-email?token=${verificationToken}`;
 
-  console.log("Verification URL:", verificationUrl);
-
   try {
     await sendVerificationEmail(user.email, verificationUrl);
   } catch (error) {
     console.error("Failed to send verification email:", error);
   }
 
-  const { password: _, refreshToken, ...safeUser } = savedUser.toObject();
+  const { password: _, refreshTokens, ...safeUser } = savedUser.toObject();
 
   // Return Response.
   return res
@@ -116,8 +89,6 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
 const verifyUser = asyncHandler(async (req: Request, res: Response) => {
   const { token } = req.query;
 
-  console.log("Token:", token);
-
   if (!token || typeof token !== "string") {
     return res.redirect(
       `${process.env.CORS_ORIGIN}/verification-failed?error=invalid_token`
@@ -129,14 +100,10 @@ const verifyUser = asyncHandler(async (req: Request, res: Response) => {
     .update(token.trim())
     .digest("hex");
 
-  console.log("Hashed Token:", hashedToken);
-
   const user = await User.findOne({
     verificationToken: hashedToken,
     /* verificationTokenExpiry: { $gt: new Date() }, */
   }).select("-password -refreshToken");
-
-  console.log("User:", user);
 
   if (!user) {
     throw new ApiError(404, "User not found.");
@@ -194,4 +161,124 @@ const resendVerificationEmail = asyncHandler(
   }
 );
 
-export { registerUser, verifyUser, resendVerificationEmail };
+const loginUser = asyncHandler(async (req: Request, res: Response) => {
+  interface LoginBody {
+    email: string;
+    password: string;
+  }
+
+  const { email, password }: LoginBody = req.body;
+
+  if (!email?.trim() || !password?.trim()) {
+    throw new ApiError(400, "Email and password are required.");
+  }
+
+  if (!validator.isEmail(email)) {
+    throw new ApiError(400, "Invalid email format.");
+  }
+
+  // Find user by email, including the password for verification
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new ApiError(401, "Invalid email or password.");
+  }
+
+  // Check if account is active
+  if (!user.isActive) {
+    throw new ApiError(
+      403,
+      "Your account has been deactivated. Please contact support."
+    );
+  }
+
+  // Verify password
+  const isPasswordValid = await user.isPasswordCorrect(password);
+  if (!isPasswordValid) {
+    throw new ApiError(401, "Invalid email or password.");
+  }
+
+  // Update last login time
+  user.lastLogin = new Date();
+
+  // Generate tokens
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+    user,
+    req
+  );
+
+  // Get user data without sensitive information for the response
+  const loggedInUser = await User.findById(user._id).select(
+    "-password -refreshTokens -verificationToken -verificationTokenExpiry"
+  );
+
+  // Set secure cookie options
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict" as const,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  };
+
+  // Set cookies and send response
+  res
+    .status(200)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, cookieOptions)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user: loggedInUser,
+        },
+        "User logged in successfully"
+      )
+    );
+});
+
+const logoutUser = asyncHandler(async (req: Request, res: Response) => {
+  const refreshTokenFromCookie = req.cookies.refreshToken;
+
+  if (!refreshTokenFromCookie) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "User already logged out"));
+  }
+
+  const hashedRefreshToken = crypto
+    .createHash("sha256")
+    .update(refreshTokenFromCookie)
+    .digest("hex");
+
+  const user = await User.findOne({
+    "refreshTokens.token": hashedRefreshToken,
+  });
+
+  if (user) {
+    // Remove the refresh token from the user's document
+    user.refreshTokens = user.refreshTokens.filter(
+      (rt) => rt.token !== hashedRefreshToken
+    );
+    await user.save({ validateBeforeSave: false });
+  }
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict" as const,
+  };
+
+  res
+    .status(200)
+    .clearCookie("accessToken", cookieOptions)
+    .clearCookie("refreshToken", cookieOptions)
+    .json(new ApiResponse(200, {}, "User logged out successfully"));
+});
+
+export {
+  registerUser,
+  verifyUser,
+  resendVerificationEmail,
+  loginUser,
+  logoutUser,
+};

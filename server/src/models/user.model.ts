@@ -33,7 +33,12 @@ export interface IUser extends Document {
     country: { type: String; trim: true };
     pincode: { type: String; trim: true };
   };
-  refreshToken: string;
+  refreshTokens: {
+    token: string;
+    createdAt: Date;
+    ip: string;
+    userAgent: string;
+  }[];
   isVerified: boolean;
   isActive: boolean;
   verificationToken?: string;
@@ -91,10 +96,14 @@ const UserSchema = new Schema<IUser>(
       country: { type: String, trim: true },
       pincode: { type: String, trim: true },
     },
-    refreshToken: {
-      type: String,
-      default: "",
-    },
+    refreshTokens: [
+      {
+        token: { type: String, required: true },
+        createdAt: { type: Date, required: true, default: Date.now },
+        ip: { type: String },
+        userAgent: { type: String },
+      },
+    ],
     isVerified: {
       type: Boolean,
       default: false,
@@ -155,7 +164,6 @@ UserSchema.methods.generateVerificationToken = function (): string {
   return token;
 };
 
-// Method to generate an access token.
 UserSchema.methods.generateAccessToken = function (): string {
   const secret = process.env.ACCESS_TOKEN_SECRET as Secret;
   const expiry = process.env.ACCESS_TOKEN_EXPIRY as SignOptions["expiresIn"];
@@ -180,30 +188,36 @@ UserSchema.methods.generateAccessToken = function (): string {
 };
 
 // Method to generate a refresh token.
-UserSchema.methods.generateRefreshToken = function (): string {
-  const secret = process.env.REFRESH_TOKEN_SECRET as Secret;
-  const expiry = process.env.REFRESH_TOKEN_EXPIRY as SignOptions["expiresIn"];
+UserSchema.methods.generateRefreshToken = function (): {
+  raw: string;
+  hashed: string;
+} {
+  // const secret = process.env.REFRESH_TOKEN_SECRET as Secret;
+  // const expiry = process.env.REFRESH_TOKEN_EXPIRY as SignOptions["expiresIn"];
 
-  if (!secret || !expiry) {
-    throw new Error(
-      "Missing refresh token secret or expiry environment variable."
-    );
-  }
-  return jwt.sign(
-    {
-      _id: this._id,
-    },
-    secret,
-    {
-      expiresIn: expiry,
-    }
-  );
+  // if (!secret || !expiry) {
+  //   throw new Error(
+  //     "Missing refresh token secret or expiry environment variable."
+  //   );
+  // }
+  // return jwt.sign(
+  //   {
+  //     _id: this._id,
+  //   },
+  //   secret,
+  //   {
+  //     expiresIn: expiry,
+  //   }
+  // );
+  const raw = crypto.randomBytes(64).toString("hex");
+  const hashed = crypto.createHash("sha256").update(raw).digest("hex"); // store hashed in DB
+  return { raw, hashed };
 };
 
 export interface IUserMethods {
   isPasswordCorrect(password: string): Promise<boolean>;
   generateAccessToken(): string;
-  generateRefreshToken(): string;
+  generateRefreshToken(): { raw: string; hashed: string };
   generateVerificationToken(): string;
 }
 

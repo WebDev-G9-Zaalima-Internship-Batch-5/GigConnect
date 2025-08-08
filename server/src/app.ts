@@ -39,6 +39,12 @@ if (process.env.NODE_ENV === "development") {
 
 // routes
 
+import userRouter from "./routes/user.route.js";
+import healthcheckRouter from "./routes/healthcheck.route.js";
+
+app.use("/api/v1/healthcheck", healthcheckRouter);
+app.use("/api/v1/users", userRouter);
+
 // error handling
 app.use(errorHandler);
 export default app;

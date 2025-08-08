@@ -1,7 +1,8 @@
-import { Schema, model, Document, Types } from "mongoose";
+import { Schema, model, Document, Types, Model } from "mongoose";
 
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import type { Secret, SignOptions } from "jsonwebtoken";
 
 export enum UserRole {
@@ -15,24 +16,28 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: UserRole;
-  firstName: string;
-  lastName: string;
+  fullName: string;
   phone?: string;
   avatar?: string;
   location: {
-    address: string;
-    city: string;
-    state: string;
-    country: string;
-    pincode: string;
-    coordinates: {
-      latitude: number;
-      longitude: number;
+    type: {
+      type: String;
+      enum: ["Point"];
     };
+    coordinates: {
+      type: [Number]; // [longitude, latitude]
+    };
+    address: { type: String; trim: true };
+    city: { type: String; trim: true };
+    state: { type: String; trim: true };
+    country: { type: String; trim: true };
+    pincode: { type: String; trim: true };
   };
   refreshToken: string;
   isVerified: boolean;
   isActive: boolean;
+  verificationToken?: string;
+  verificationTokenExpiry?: Date;
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -51,6 +56,7 @@ const UserSchema = new Schema<IUser>(
       type: String,
       required: true,
       minlength: 6,
+      trim: true,
     },
     role: {
       type: String,
@@ -58,12 +64,7 @@ const UserSchema = new Schema<IUser>(
       required: true,
       immutable: true, // Role cannot be changed after creation
     },
-    firstName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    lastName: {
+    fullName: {
       type: String,
       required: true,
       trim: true,
@@ -74,17 +75,21 @@ const UserSchema = new Schema<IUser>(
     },
     avatar: {
       type: String,
+      trim: true,
     },
     location: {
-      address: { type: String, required: true },
-      city: { type: String, required: true },
-      state: { type: String, required: true },
-      country: { type: String, required: true },
-      pincode: { type: String, required: true },
-      coordinates: {
-        latitude: { type: Number, required: true },
-        longitude: { type: Number, required: true },
+      type: {
+        type: String,
+        enum: ["Point"],
       },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+      },
+      address: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      country: { type: String, trim: true },
+      pincode: { type: String, trim: true },
     },
     refreshToken: {
       type: String,
@@ -93,10 +98,18 @@ const UserSchema = new Schema<IUser>(
     isVerified: {
       type: Boolean,
       default: false,
+      required: true,
     },
     isActive: {
       type: Boolean,
       default: true,
+      required: true,
+    },
+    verificationToken: {
+      type: String,
+    },
+    verificationTokenExpiry: {
+      type: Date,
     },
     lastLogin: {
       type: Date,
@@ -108,9 +121,9 @@ const UserSchema = new Schema<IUser>(
 );
 
 // Create geospatial index for location-based queries
-UserSchema.index({ "location.coordinates": "2dsphere" });
-UserSchema.index({ email: 1 });
+UserSchema.index({ location: "2dsphere" });
 UserSchema.index({ role: 1 });
+UserSchema.index({ role: 1, location: "2dsphere" });
 
 UserSchema.pre<IUser>("save", async function (next) {
   if (!this.isModified("password")) {
@@ -125,6 +138,21 @@ UserSchema.methods.isPasswordCorrect = async function (
   password: string
 ): Promise<boolean> {
   return await bcrypt.compare(password, this.password);
+};
+
+// Method to generate email verification token
+UserSchema.methods.generateVerificationToken = function (): string {
+  const token = crypto.randomBytes(20).toString("hex");
+
+  this.verificationToken = crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
+
+  // Set expiry to 15 minutes from now
+  this.verificationTokenExpiry = new Date(Date.now() + 60 * 360 * 1000);
+
+  return token;
 };
 
 // Method to generate an access token.
@@ -172,4 +200,14 @@ UserSchema.methods.generateRefreshToken = function (): string {
   );
 };
 
-export const User = model<IUser>("User", UserSchema);
+export interface IUserMethods {
+  isPasswordCorrect(password: string): Promise<boolean>;
+  generateAccessToken(): string;
+  generateRefreshToken(): string;
+  generateVerificationToken(): string;
+}
+
+// Combine the schema interface and the methods interface
+export type UserModelType = Model<IUser, {}, IUserMethods>;
+
+export const User = model<IUser, UserModelType>("User", UserSchema);

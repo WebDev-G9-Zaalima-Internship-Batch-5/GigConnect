@@ -5,7 +5,6 @@ import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 import { User } from "../models/user.model.js";
-import { IUser } from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../utils/token.utils.js";
 import crypto from "crypto";
 
@@ -19,15 +18,15 @@ declare global {
 
 export const verifyJWT = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
+    const token =
+      req.cookies?.accessToken ||
+      req.header("Authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      throw new ApiError(401, "Unauthorized: No token provided.");
+    }
+    
     try {
-      const token =
-        req.cookies?.accessToken ||
-        req.header("Authorization")?.replace("Bearer ", "");
-
-      if (!token) {
-        throw new ApiError(401, "Unauthorized: No token provided.");
-      }
-
       const decodedToken = jwt.verify(
         token,
         process.env.ACCESS_TOKEN_SECRET as string
@@ -93,10 +92,8 @@ export const verifyJWT = asyncHandler(
       res.cookie("refreshToken", newRefreshToken, cookieOptions);
 
       // Attach the user to the request and proceed
-      const refreshedUser = await User.findById(user._id).select(
-        "-password -refreshTokens"
-      );
-      req.user = refreshedUser;
+      const { password: _, refreshTokens, ...safeUser } = user.toObject();
+      req.user = safeUser;
       return next();
     }
   }

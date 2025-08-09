@@ -33,18 +33,15 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, "All fields are required.");
   }
 
-  // Check if the email is in proper format.
   if (!validator.isEmail(email)) {
     throw new ApiError(400, "Invalid email format.");
   }
 
-  // Check if user already exists.
   const emailExists = await User.findOne({ email });
   if (emailExists) {
     throw new ApiError(409, "User with this email already exists.");
   }
 
-  // Create a new User object and save it to the database.
   const user = await User.create({
     email,
     password,
@@ -116,7 +113,11 @@ const verifyUser = asyncHandler(async (req: Request, res: Response) => {
   user.isVerified = true;
   user.verificationToken = undefined;
   user.verificationTokenExpiry = undefined;
-  await user.save({ validateBeforeSave: false });
+  const savedUser = await user.save({ validateBeforeSave: false });
+
+  if (!savedUser) {
+    throw new ApiError(500, "Failed to verify user.");
+  }
 
   res.redirect(`${process.env.CORS_ORIGIN}/dashboard`);
 });
@@ -134,7 +135,10 @@ const resendVerificationEmail = asyncHandler(
     const savedUser = await user.save({ validateBeforeSave: false });
 
     if (!savedUser) {
-      throw new ApiError(500, "Failed to resend verification email.");
+      throw new ApiError(
+        500,
+        "Failed to resend verification email. Please try again later."
+      );
     }
 
     const verificationUrl = `${process.env.BACKEND_URL}/api/auth/verify-email?token=${verificationToken}`;
@@ -184,7 +188,6 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(401, "Invalid email or password.");
   }
 
-  // Check if account is active
   if (!user.isActive) {
     throw new ApiError(
       403,
@@ -192,13 +195,12 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     );
   }
 
-  // Verify password
   const isPasswordValid = await user.isPasswordCorrect(password);
   if (!isPasswordValid) {
     throw new ApiError(401, "Invalid email or password.");
   }
 
-  // Update last login time
+  // Note: lastLogin will be saved in generateAccessAndRefreshTokens()
   user.lastLogin = new Date();
 
   // Generate tokens
@@ -207,12 +209,14 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     req
   );
 
-  // Get user data without sensitive information for the response
-  const loggedInUser = await User.findById(user._id).select(
-    "-password -refreshTokens -verificationToken -verificationTokenExpiry"
-  );
+  const {
+    password: _,
+    refreshTokens,
+    verificationToken,
+    verificationTokenExpiry,
+    ...safeUser
+  } = user.toObject();
 
-  // Set secure cookie options
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -220,7 +224,6 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   };
 
-  // Set cookies and send response
   res
     .status(200)
     .cookie("accessToken", accessToken, cookieOptions)
@@ -229,7 +232,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
       new ApiResponse(
         200,
         {
-          user: loggedInUser,
+          user: safeUser,
         },
         "User logged in successfully"
       )
@@ -237,17 +240,24 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const logoutUser = asyncHandler(async (req: Request, res: Response) => {
-  const refreshTokenFromCookie = req.cookies.refreshToken;
+  const { refreshToken } = req.cookies;
 
-  if (!refreshTokenFromCookie) {
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict" as const,
+  };
+
+  if (!refreshToken) {
     return res
       .status(200)
+      .clearCookie("accessToken", cookieOptions)
       .json(new ApiResponse(200, {}, "User already logged out"));
   }
 
   const hashedRefreshToken = crypto
     .createHash("sha256")
-    .update(refreshTokenFromCookie)
+    .update(refreshToken)
     .digest("hex");
 
   const user = await User.findOne({
@@ -255,18 +265,11 @@ const logoutUser = asyncHandler(async (req: Request, res: Response) => {
   });
 
   if (user) {
-    // Remove the refresh token from the user's document
     user.refreshTokens = user.refreshTokens.filter(
       (rt) => rt.token !== hashedRefreshToken
     );
     await user.save({ validateBeforeSave: false });
   }
-
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
-  };
 
   res
     .status(200)

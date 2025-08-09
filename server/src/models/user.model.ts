@@ -192,23 +192,6 @@ UserSchema.methods.generateRefreshToken = function (): {
   raw: string;
   hashed: string;
 } {
-  // const secret = process.env.REFRESH_TOKEN_SECRET as Secret;
-  // const expiry = process.env.REFRESH_TOKEN_EXPIRY as SignOptions["expiresIn"];
-
-  // if (!secret || !expiry) {
-  //   throw new Error(
-  //     "Missing refresh token secret or expiry environment variable."
-  //   );
-  // }
-  // return jwt.sign(
-  //   {
-  //     _id: this._id,
-  //   },
-  //   secret,
-  //   {
-  //     expiresIn: expiry,
-  //   }
-  // );
   const raw = crypto.randomBytes(64).toString("hex");
   const hashed = crypto.createHash("sha256").update(raw).digest("hex"); // store hashed in DB
   return { raw, hashed };

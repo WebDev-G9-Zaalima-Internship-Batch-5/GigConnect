@@ -10,6 +10,8 @@ import { UserRole } from "../models/user.model.js";
 import { sendVerificationEmail } from "../services/nodemailerd.service.js";
 import crypto from "crypto";
 import { generateAccessAndRefreshTokens } from "../utils/token.utils.js";
+import { FreelancerProfile } from "../models/freelancerProfile.model.js";
+import { ClientProfile } from "../models/clientProfile.model.js";
 
 type UserDoc = HydratedDocument<IUser, IUserMethods>;
 
@@ -51,6 +53,13 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
 
   if (!user) {
     throw new ApiError(500, "Failed to register user.");
+  }
+
+  // Create a freelancer or client profile based on the user's role.
+  if (user.role === UserRole.FREELANCER) {
+    await FreelancerProfile.create({ userId: user._id });
+  } else if (user.role === UserRole.CLIENT) {
+    await ClientProfile.create({ userId: user._id });
   }
 
   // Send verification email
@@ -141,7 +150,7 @@ const resendVerificationEmail = asyncHandler(
       );
     }
 
-    const verificationUrl = `${process.env.BACKEND_URL}/api/auth/verify-email?token=${verificationToken}`;
+    const verificationUrl = `${process.env.BACKEND_URL}/api/v1/users/verify-email?token=${verificationToken}`;
 
     try {
       await sendVerificationEmail(user.email, verificationUrl);
@@ -278,10 +287,19 @@ const logoutUser = asyncHandler(async (req: Request, res: Response) => {
     .json(new ApiResponse(200, {}, "User logged out successfully"));
 });
 
+const getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw new ApiError(401, "User is not logged in.");
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, req.user, "User fetched successfully"));
+});
+
 export {
   registerUser,
   verifyUser,
   resendVerificationEmail,
   loginUser,
   logoutUser,
+  getCurrentUser,
 };

@@ -50,16 +50,13 @@ const ClientProfileSchema = new Schema<IClientProfile>(
     businessType: {
       type: String,
       enum: ["individual", "startup", "small_business", "enterprise"],
-      required: true,
     },
     industryType: {
       type: String,
-      required: true,
       trim: true,
     },
     description: {
       type: String,
-      required: true,
       maxlength: 1000,
     },
     projectsPosted: {
@@ -92,11 +89,6 @@ const ClientProfileSchema = new Schema<IClientProfile>(
     verifiedPayment: {
       type: Boolean,
       default: false,
-    },
-    preferredBudgetRange: {
-      min: { type: Number, required: true, min: 0 },
-      max: { type: Number, required: true, min: 0 },
-      currency: { type: String, default: "INR" },
     },
     communicationPreferences: {
       emailNotifications: { type: Boolean, default: true },

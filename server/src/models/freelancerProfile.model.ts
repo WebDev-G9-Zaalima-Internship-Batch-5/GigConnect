@@ -81,13 +81,11 @@ const FreelancerProfileSchema = new Schema<IFreelancerProfile>(
     },
     title: {
       type: String,
-      required: true,
       trim: true,
       maxlength: 100,
     },
     bio: {
       type: String,
-      required: true,
       maxlength: 1000,
     },
     skills: [
@@ -99,7 +97,6 @@ const FreelancerProfileSchema = new Schema<IFreelancerProfile>(
     ],
     hourlyRate: {
       type: Number,
-      required: true,
       min: 0,
     },
     availability: {
@@ -223,7 +220,7 @@ const FreelancerProfileSchema = new Schema<IFreelancerProfile>(
   }
 );
 
-FreelancerProfileSchema.index({ userId: 1 });
+// FreelancerProfileSchema.index({ userId: 1 });
 FreelancerProfileSchema.index({ skills: 1 });
 FreelancerProfileSchema.index({ rating: -1 });
 FreelancerProfileSchema.index({ hourlyRate: 1 });

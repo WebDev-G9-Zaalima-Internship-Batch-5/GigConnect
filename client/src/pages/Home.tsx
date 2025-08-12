@@ -9,6 +9,7 @@ export default function Home() {
       <div className="space-x-3">
         <Link to="/signup" className="btn">Create account</Link>
         <Link to="/signin" className="btn border border-gray-200 text-brand">Login</Link>
+        <h1>Hello</h1>
       </div>
     </div>
   )

@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* custom utilities */
+body { @apply bg-gray-50 text-gray-900; }
+.container { @apply max-w-3xl mx-auto px-4; }
+.card { @apply bg-white p-8 rounded-lg shadow-lg; }
+.input { @apply w-full border border-gray-200 p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-brand; }
+.btn { @apply inline-block px-4 py-2 rounded-md text-white bg-brand; }
+.small { @apply text-sm text-gray-500; }

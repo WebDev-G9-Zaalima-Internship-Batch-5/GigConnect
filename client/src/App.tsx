@@ -1,16 +1,28 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react'
+import { Routes, Route, Link } from 'react-router-dom'
+import Home from './pages/Home'
+import SignIn from './pages/SignIn'
+import SignUp from './pages/SignUp'
 
-function App() {
-  const [count, setCount] = useState(0)
-
+export default function App() {
   return (
-    <>
-      <h1>Hello gigconnect </h1>
-    </>
+    <div>
+      <nav className="bg-white shadow-sm">
+        <div className="container py-4 flex justify-between items-center">
+          <Link to="/" className="font-bold text-xl">GinConnect</Link>
+          <div className="space-x-3">
+            <Link to="/signup" className="text-brand">Sign Up</Link>
+            <Link to="/signin" className="text-brand">Sign In</Link>
+          </div>
+        </div>
+      </nav>
+      <main className="container py-10">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/signup" element={<SignUp />} />
+        </Routes>
+      </main>
+    </div>
   )
 }
-
-export default App

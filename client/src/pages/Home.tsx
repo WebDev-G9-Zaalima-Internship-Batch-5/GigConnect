@@ -10,6 +10,7 @@ export default function Home() {
         <Link to="/signup" className="btn">Create account</Link>
         <Link to="/signin" className="btn border border-gray-200 text-brand">Login</Link>
         <h1>Hello</h1>
+        <h4>Gigconnect</h4>
       </div>
     </div>
   )

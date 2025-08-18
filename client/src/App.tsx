@@ -13,30 +13,96 @@ import FreelancerProfile from "./pages/FreelancerProfile";
 import FindWork from "./pages/FindWork";
 import FindTalent from "./pages/FindTalent";
 import NotFound from "./pages/NotFound";
+import { AuthProvider } from "./contexts/AuthContext";
+import AuthLayout from "./components/AuthLayout";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/find-work" element={<FindWork />} />
-          <Route path="/find-talent" element={<FindTalent />} />
-          <Route path="/client-dashboard" element={<ClientDashboard />} />
-          <Route path="/freelancer-dashboard" element={<FreelancerDashboard />} />
-          <Route path="/client-profile" element={<ClientProfile />} />
-          <Route path="/freelancer-profile" element={<FreelancerProfile />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Public route (accessible by anyone) */}
+            <Route path="/" element={<Home />} />
+
+            {/* Auth restricted routes (unauthenticated only) */}
+            <Route
+              path="/login"
+              element={
+                <AuthLayout authentication={false}>
+                  <Login />
+                </AuthLayout>
+              }
+            />
+            <Route
+              path="/signup"
+              element={
+                <AuthLayout authentication={false}>
+                  <Signup />
+                </AuthLayout>
+              }
+            />
+
+            {/* Protected routes (authenticated only) */}
+            <Route
+              path="/find-work"
+              element={
+                <AuthLayout>
+                  <FindWork />
+                </AuthLayout>
+              }
+            />
+            <Route
+              path="/find-talent"
+              element={
+                <AuthLayout>
+                  <FindTalent />
+                </AuthLayout>
+              }
+            />
+            <Route
+              path="/client-dashboard"
+              element={
+                <AuthLayout>
+                  <ClientDashboard />
+                </AuthLayout>
+              }
+            />
+            <Route
+              path="/freelancer-dashboard"
+              element={
+                <AuthLayout>
+                  <FreelancerDashboard />
+                </AuthLayout>
+              }
+            />
+            <Route
+              path="/client-profile"
+              element={
+                <AuthLayout>
+                  <ClientProfile />
+                </AuthLayout>
+              }
+            />
+            <Route
+              path="/freelancer-profile"
+              element={
+                <AuthLayout>
+                  <FreelancerProfile />
+                </AuthLayout>
+              }
+            />
+
+            {/* Catch-all */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

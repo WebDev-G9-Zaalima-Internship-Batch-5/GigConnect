@@ -31,7 +31,7 @@ function AuthLayout({ children, authentication = true }: AuthLayoutProps) {
     }
   }, [isAuthenticated, authentication, navigate, loading, appLoading]);
 
-  return loader || loading || appLoading ? (
+  return appLoading ? (
     <div className="flex items-center justify-center min-h-svh">
       <Loader className="w-12 h-12 animate-spin" />
     </div>

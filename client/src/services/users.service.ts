@@ -27,26 +27,27 @@ export interface User {
 }
 
 export const registerUser = async (data: RegisterPayload) => {
-  const res = await axiosInstance.post("/register", data);
+  const res = await axiosInstance.post("/users/register", data);
+  console.log(res.data);
   return res.data;
 };
 
 export const loginUser = async (data: LoginPayload) => {
-  const res = await axiosInstance.post("/login", data);
+  const res = await axiosInstance.post("/users/login", data);
   return res.data;
 };
 
 export const logoutUser = async () => {
-  const res = await axiosInstance.post("/logout");
+  const res = await axiosInstance.post("/users/logout");
   return res.data;
 };
 
 export const getCurrentUser = async (): Promise<User> => {
-  const res = await axiosInstance.get("/get-current-user");
+  const res = await axiosInstance.get("/users/get-current-user");
   return res.data.data;
 };
 
 export const resendVerificationEmail = async () => {
-  const res = await axiosInstance.post("/resend-verification-email");
+  const res = await axiosInstance.post("/users/resend-verification-email");
   return res.data;
 };

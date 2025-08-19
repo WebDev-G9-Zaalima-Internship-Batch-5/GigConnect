@@ -13,20 +13,31 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
 import Navigation from "@/components/Navigation";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Signup = () => {
+  type UserRole = "freelancer" | "client";
+
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     password: "",
-    userType: "freelancer",
+    userType: "freelancer" as UserRole,
   });
+
+  const { register, loading, error, isAuthenticated } = useAuth();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle signup logic here
+    const fullName = `${formData.firstName} ${formData.lastName}`;
+    register({
+      email: formData.email,
+      password: formData.password,
+      role: formData.userType,
+      fullName,
+    });
     console.log("Signup attempt:", formData);
   };
 
@@ -73,7 +84,6 @@ const Signup = () => {
                         lastName: e.target.value,
                       }))
                     }
-                    required
                   />
                 </div>
               </div>
@@ -137,7 +147,7 @@ const Signup = () => {
                 <Label>I want to:</Label>
                 <RadioGroup
                   value={formData.userType}
-                  onValueChange={(value) =>
+                  onValueChange={(value: UserRole) =>
                     setFormData((prev) => ({ ...prev, userType: value }))
                   }
                 >

@@ -78,15 +78,36 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     console.error("Failed to send verification email:", error);
   }
 
-  const { password: _, refreshTokens, ...safeUser } = savedUser.toObject();
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+    user,
+    req
+  );
 
-  // Return Response.
-  return res
+  const {
+    password: _,
+    refreshTokens,
+    verificationToken: _verificationToken,
+    verificationTokenExpiry,
+    ...safeUser
+  } = user.toObject();
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict" as const,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  };
+
+  res
     .status(201)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, cookieOptions)
     .json(
       new ApiResponse(
         201,
-        safeUser,
+        {
+          user: safeUser,
+        },
         "User registered successfully. Please check your email to verify your account."
       )
     );

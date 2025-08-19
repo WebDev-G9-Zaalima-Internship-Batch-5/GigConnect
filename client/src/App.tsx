@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -18,92 +18,84 @@ import AuthLayout from "./components/AuthLayout";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public route (accessible by anyone) */}
-            <Route path="/" element={<Home />} />
+const App = () => {
+  const router = createBrowserRouter([
+    // Public route
+    {
+      path: "/",
+      element: <Home />,
+    },
+    {
+      path: "/find-work",
+      element: <FindWork />,
+    },
+    {
+      path: "/find-talent",
+      element: <FindTalent />,
+    },
+    {
+      path: "/client-profile",
+      element: <ClientProfile />,
+    },
+    {
+      path: "/freelancer-profile",
+      element: <FreelancerProfile />,
+    },
 
-            {/* Auth restricted routes (unauthenticated only) */}
-            <Route
-              path="/login"
-              element={
-                <AuthLayout authentication={false}>
-                  <Login />
-                </AuthLayout>
-              }
-            />
-            <Route
-              path="/signup"
-              element={
-                <AuthLayout authentication={false}>
-                  <Signup />
-                </AuthLayout>
-              }
-            />
+    //  Unauthenticated Only routes
+    {
+      path: "/login",
+      element: (
+        <AuthLayout authentication={false}>
+          <Login />
+        </AuthLayout>
+      ),
+    },
+    {
+      path: "/signup",
+      element: (
+        <AuthLayout authentication={false}>
+          <Signup />
+        </AuthLayout>
+      ),
+    },
 
-            {/* Protected routes (authenticated only) */}
-            <Route
-              path="/find-work"
-              element={
-                <AuthLayout>
-                  <FindWork />
-                </AuthLayout>
-              }
-            />
-            <Route
-              path="/find-talent"
-              element={
-                <AuthLayout>
-                  <FindTalent />
-                </AuthLayout>
-              }
-            />
-            <Route
-              path="/client-dashboard"
-              element={
-                <AuthLayout>
-                  <ClientDashboard />
-                </AuthLayout>
-              }
-            />
-            <Route
-              path="/freelancer-dashboard"
-              element={
-                <AuthLayout>
-                  <FreelancerDashboard />
-                </AuthLayout>
-              }
-            />
-            <Route
-              path="/client-profile"
-              element={
-                <AuthLayout>
-                  <ClientProfile />
-                </AuthLayout>
-              }
-            />
-            <Route
-              path="/freelancer-profile"
-              element={
-                <AuthLayout>
-                  <FreelancerProfile />
-                </AuthLayout>
-              }
-            />
+    // Authenticated Only routes
+    {
+      path: "/client-dashboard",
+      element: (
+        <AuthLayout authentication={true}>
+          <ClientDashboard />
+        </AuthLayout>
+      ),
+    },
+    {
+      path: "/freelancer-dashboard",
+      element: (
+        <AuthLayout authentication={true}>
+          <FreelancerDashboard />
+        </AuthLayout>
+      ),
+    },
 
-            {/* Catch-all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+    // Catch-all route
+    {
+      path: "*",
+      element: <NotFound />,
+    },
+  ]);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <RouterProvider router={router} />
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

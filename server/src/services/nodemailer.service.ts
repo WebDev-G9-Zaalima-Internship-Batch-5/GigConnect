@@ -67,7 +67,7 @@ const emailService = new EmailService(
   `"GitConnect" <${process.env.GMAIL_USER}>`
 );
 
-export async function sendVerificationEmail(
+async function sendVerificationEmail(
   userEmail: string,
   verificationLink: string
 ) {
@@ -86,4 +86,20 @@ export async function sendVerificationEmail(
   });
 }
 
-export { emailService };
+async function sendPasswordResetEmail(userEmail: string, resetLink: string) {
+  const templatePath = path.resolve(
+    process.cwd(),
+    "src/templates/passwordResetEmail.html"
+  );
+
+  let htmlContent = await fs.readFile(templatePath, "utf-8");
+  htmlContent = htmlContent.replace(/{{resetLink}}/g, resetLink);
+
+  await emailService.sendMail({
+    to: userEmail,
+    subject: "Reset your password",
+    html: htmlContent,
+  });
+}
+
+export { emailService, sendVerificationEmail, sendPasswordResetEmail };

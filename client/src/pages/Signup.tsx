@@ -25,41 +25,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useState } from "react";
+import { signUpFormSchema } from "@/schemas/auth.schema";
 
 type UserRole = "freelancer" | "client";
 
-const passwordSchema = z
-  .string()
-  .min(8, {
-    message: "Password must be at least 8 characters long.",
-  })
-  .regex(/[a-z]/, {
-    message: "Password must contain at least one lowercase letter.",
-  })
-  .regex(/[A-Z]/, {
-    message: "Password must contain at least one uppercase letter.",
-  })
-  .regex(/[0-9]/, {
-    message: "Password must contain at least one number.",
-  })
-  .regex(/[^a-zA-Z0-9]/, {
-    message: "Password must contain at least one special character.",
-  })
-  .regex(/^[a-zA-Z0-9!@#$%^&*()_+-=\[\]{};:'",.<>?/\\|~`]+$/, {
-    message: "Password contains an unsupported character.",
-  });
-
-const formSchema = z.object({
-  firstName: z.string().min(2, {
-    message: "First name must be at least 2 characters.",
-  }),
-  lastName: z.string().optional(),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  password: passwordSchema,
-  userType: z.enum(["freelancer", "client"] as const),
-});
+const formSchema = signUpFormSchema;
 
 type FormValues = z.infer<typeof formSchema>;
 

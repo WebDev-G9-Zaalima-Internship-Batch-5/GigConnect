@@ -2,22 +2,48 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import Navigation from "@/components/Navigation";
+import { loginFormSchema } from "@/schemas/auth.schema";
+import * as z from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useAuth } from "@/contexts/AuthContext";
+
+type FormValues = z.infer<typeof loginFormSchema>;
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: ""
+  const { login, loading, error } = useAuth();
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle login logic here
-    console.log("Login attempt:", formData);
+  const onSubmit = (values: FormValues) => {
+    login({
+      email: values.email,
+      password: values.password,
+    });
   };
 
   return (
@@ -32,68 +58,99 @@ const Login = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={formData.password}
-                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                    className="pl-10 pr-10"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowPassword(!showPassword)}
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <FormControl>
+                          <Input
+                            placeholder="Enter your email"
+                            className="pl-10"
+                            {...field}
+                          />
+                        </FormControl>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <FormControl>
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Enter your password"
+                            className="pl-10 pr-10"
+                            {...field}
+                          />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full px-3"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end text-sm">
+                  <Link
+                    to="/forgot-password"
+                    className="text-primary hover:underline"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
+                    Forgot password?
+                  </Link>
                 </div>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <Link
-                  to="/forgot-password"
-                  className="text-sm text-primary hover:underline"
+
+                {error && (
+                  <p className="text-sm font-medium text-destructive text-center">
+                    {error}
+                  </p>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  variant="hero"
+                  className="w-full"
                 >
-                  Forgot password?
-                </Link>
-              </div>
-              
-              <Button type="submit" variant="hero" className="w-full">
-                Sign In
-              </Button>
-              
-              <div className="text-center text-sm">
-                <span className="text-muted-foreground">Don't have an account? </span>
-                <Link to="/signup" className="text-primary hover:underline font-medium">
-                  Sign up
-                </Link>
-              </div>
-            </form>
+                  {loading ? "Signing in..." : "Sign In"}
+                </Button>
+
+                <div className="text-center text-sm">
+                  Don't have an account?{" "}
+                  <Link to="/signup" className="text-primary hover:underline">
+                    Sign up
+                  </Link>
+                </div>
+              </form>
+            </Form>
           </CardContent>
         </Card>
       </div>

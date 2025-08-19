@@ -7,7 +7,10 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
 import validator from "validator";
 import { UserRole } from "../models/user.model.js";
-import { sendVerificationEmail } from "../services/nodemailerd.service.js";
+import {
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from "../services/nodemailer.service.js";
 import crypto from "crypto";
 import { generateAccessAndRefreshTokens } from "../utils/token.utils.js";
 import { FreelancerProfile } from "../models/freelancerProfile.model.js";
@@ -316,6 +319,133 @@ const getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
     .json(new ApiResponse(200, req.user, "User fetched successfully"));
 });
 
+// Add this to your user.controller.js file
+
+const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  if (!email?.trim()) {
+    throw new ApiError(400, "Email is required.");
+  }
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          null,
+          "Password reset email sent. Please check your inbox. The link will expire in 10 minutes."
+        )
+      );
+  }
+
+  const resetToken = user.generatePasswordResetToken();
+  await user.save({ validateBeforeSave: false });
+
+  const resetUrl = `${process.env.CORS_ORIGIN_PROD}/reset-password?token=${resetToken}&email=${user.email}`;
+
+  try {
+    await sendPasswordResetEmail(user.email, resetUrl);
+
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          null,
+          "Password reset email sent. Please check your inbox. The link will expire in 10 minutes."
+        )
+      );
+  } catch (error) {
+    user.passwordResetToken = undefined;
+    user.passwordResetExpiry = undefined;
+    await user.save({ validateBeforeSave: false });
+    console.error("Failed to send password reset email:", error);
+    throw new ApiError(
+      500,
+      "Failed to send password reset email. Please try again later."
+    );
+  }
+});
+
+const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+  interface ResetPasswordBody {
+    password: string;
+    token: string;
+    email: string;
+  }
+
+  const { password, token, email }: ResetPasswordBody = req.body;
+
+  if (!password || !token || !email) {
+    throw new ApiError(400, "Invalid request.");
+  }
+
+  if (!validator.isEmail(email)) {
+    throw new ApiError(400, "Invalid email format.");
+  }
+
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await User.findOne({
+    email,
+    passwordResetToken: hashedToken,
+    passwordResetExpiry: { $gt: new Date() },
+  });
+
+  if (!user) {
+    throw new ApiError(400, "Password reset token is invalid or has expired.");
+  }
+
+  user.password = password;
+
+  user.passwordResetToken = undefined;
+  user.passwordResetExpiry = undefined;
+
+  const savedUser = await user.save();
+
+  if (!savedUser) {
+    throw new ApiError(500, "Failed to reset password.");
+  }
+
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+    user,
+    req
+  );
+
+  const {
+    password: _,
+    refreshTokens,
+    verificationToken,
+    verificationTokenExpiry,
+    ...safeUser
+  } = savedUser.toObject();
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict" as const,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  };
+
+  res
+    .status(200)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, cookieOptions)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user: safeUser,
+        },
+        "Password reset successfully."
+      )
+    );
+});
+
 export {
   registerUser,
   verifyUser,
@@ -323,4 +453,6 @@ export {
   loginUser,
   logoutUser,
   getCurrentUser,
+  forgotPassword,
+  resetPassword,
 };

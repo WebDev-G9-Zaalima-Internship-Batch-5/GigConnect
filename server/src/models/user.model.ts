@@ -43,6 +43,8 @@ export interface IUser extends Document {
   isActive: boolean;
   verificationToken?: string;
   verificationTokenExpiry?: Date;
+  passwordResetToken?: string;
+  passwordResetExpiry?: Date;
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -120,6 +122,12 @@ const UserSchema = new Schema<IUser>(
     verificationTokenExpiry: {
       type: Date,
     },
+    passwordResetToken: {
+      type: String,
+    },
+    passwordResetExpiry: {
+      type: Date,
+    },
     lastLogin: {
       type: Date,
     },
@@ -187,7 +195,6 @@ UserSchema.methods.generateAccessToken = function (): string {
   );
 };
 
-// Method to generate a refresh token.
 UserSchema.methods.generateRefreshToken = function (): {
   raw: string;
   hashed: string;
@@ -197,11 +204,25 @@ UserSchema.methods.generateRefreshToken = function (): {
   return { raw, hashed };
 };
 
+UserSchema.methods.generatePasswordResetToken = function (): string {
+  const resetToken = crypto.randomBytes(32).toString("hex");
+
+  this.passwordResetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  this.passwordResetExpiry = new Date(Date.now() + 1000 * 60 * 10);
+
+  return resetToken;
+};
+
 export interface IUserMethods {
   isPasswordCorrect(password: string): Promise<boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): { raw: string; hashed: string };
   generateVerificationToken(): string;
+  generatePasswordResetToken(): string;
 }
 
 // Combine the schema interface and the methods interface

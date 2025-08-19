@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,34 +13,79 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useState } from "react";
 
-const Signup = () => {
-  type UserRole = "freelancer" | "client";
+type UserRole = "freelancer" | "client";
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    userType: "freelancer" as UserRole,
+const passwordSchema = z
+  .string()
+  .min(8, {
+    message: "Password must be at least 8 characters long.",
+  })
+  .regex(/[a-z]/, {
+    message: "Password must contain at least one lowercase letter.",
+  })
+  .regex(/[A-Z]/, {
+    message: "Password must contain at least one uppercase letter.",
+  })
+  .regex(/[0-9]/, {
+    message: "Password must contain at least one number.",
+  })
+  .regex(/[^a-zA-Z0-9]/, {
+    message: "Password must contain at least one special character.",
+  })
+  .regex(/^[a-zA-Z0-9!@#$%^&*()_+-=\[\]{};:'",.<>?/\\|~`]+$/, {
+    message: "Password contains an unsupported character.",
   });
 
-  const { register, loading, error, isAuthenticated } = useAuth();
+const formSchema = z.object({
+  firstName: z.string().min(2, {
+    message: "First name must be at least 2 characters.",
+  }),
+  lastName: z.string().optional(),
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
+  password: passwordSchema,
+  userType: z.enum(["freelancer", "client"] as const),
+});
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const fullName = `${formData.firstName} ${formData.lastName}`;
+type FormValues = z.infer<typeof formSchema>;
+
+const Signup = () => {
+  const [showPassword, setShowPassword] = useState(false);
+  const { register, loading, error } = useAuth();
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      password: "",
+      userType: "freelancer",
+    },
+  });
+
+  const onSubmit = (data: FormValues) => {
+    const fullName = `${data.firstName} ${data.lastName || ""}`.trim();
     register({
-      email: formData.email,
-      password: formData.password,
-      role: formData.userType,
+      email: data.email,
+      password: data.password,
+      role: data.userType,
       fullName,
     });
-    console.log("Signup attempt:", formData);
   };
 
   return (
@@ -55,131 +102,158 @@ const Signup = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    placeholder="First name"
-                    value={formData.firstName}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        firstName: e.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    placeholder="Last name"
-                    value={formData.lastName}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        lastName: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        email: e.target.value,
-                      }))
-                    }
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Create a password"
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        password: e.target.value,
-                      }))
-                    }
-                    className="pl-10 pr-10"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem className="space-y-2">
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="First name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                  </Button>
+                  />
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem className="space-y-2">
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Last name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-              </div>
 
-              <div className="space-y-3">
-                <Label>I want to:</Label>
-                <RadioGroup
-                  value={formData.userType}
-                  onValueChange={(value: UserRole) =>
-                    setFormData((prev) => ({ ...prev, userType: value }))
-                  }
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel>Email</FormLabel>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <FormControl>
+                          <Input
+                            placeholder="Enter your email"
+                            className="pl-10"
+                            {...field}
+                          />
+                        </FormControl>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem className="space-y-2">
+                      <FormLabel>Password</FormLabel>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                        <FormControl>
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Create a password"
+                            className="pl-10 pr-10"
+                            {...field}
+                          />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full px-3"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="userType"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>I want to:</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex flex-col space-y-1"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem
+                              value="freelancer"
+                              id="freelancer"
+                            />
+                            <Label htmlFor="freelancer">
+                              Find work as a freelancer
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="client" id="client" />
+                            <Label htmlFor="client">
+                              Hire talent for my projects
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button
+                  type="submit"
+                  variant="hero"
+                  className="w-full"
+                  disabled={loading}
                 >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="freelancer" id="freelancer" />
-                    <Label htmlFor="freelancer">
-                      Find work as a freelancer
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="client" id="client" />
-                    <Label htmlFor="client">Hire talent for my projects</Label>
-                  </div>
-                </RadioGroup>
-              </div>
+                  {loading ? "Creating account..." : "Create Account"}
+                </Button>
 
-              <Button type="submit" variant="hero" className="w-full">
-                Create Account
-              </Button>
+                {error && (
+                  <p className="text-sm font-medium text-destructive text-center">
+                    {error}
+                  </p>
+                )}
 
-              <div className="text-center text-sm">
-                <span className="text-muted-foreground">
-                  Already have an account?{" "}
-                </span>
-                <Link
-                  to="/login"
-                  className="text-primary hover:underline font-medium"
-                >
-                  Sign in
-                </Link>
-              </div>
-            </form>
+                <div className="text-center text-sm">
+                  <span className="text-muted-foreground">
+                    Already have an account?{" "}
+                  </span>
+                  <Link
+                    to="/login"
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Sign in
+                  </Link>
+                </div>
+              </form>
+            </Form>
           </CardContent>
         </Card>
       </div>

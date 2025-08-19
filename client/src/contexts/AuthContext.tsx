@@ -11,41 +11,41 @@ import {
   logoutUser,
   registerUser,
   resendVerificationEmail,
+  resetPassword as resetPasswordService,
   RegisterPayload,
   LoginPayload,
+  ResetPasswordPayload,
   User,
 } from "../services/users.service";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  isVerified: boolean;
   loading: boolean;
   error: string | null;
   appLoading: boolean;
 }
-
-const initialState: AuthState = {
-  user: null,
-  isAuthenticated: false,
-  loading: false,
-  error: null,
-  appLoading: true,
-};
 
 interface AuthContextType extends AuthState {
   login: (data: LoginPayload) => Promise<void>;
   register: (data: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
   resendVerification: () => Promise<void>;
+  resetPassword: (data: ResetPasswordPayload) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const initialState: AuthState = {
+  user: null,
+  isAuthenticated: false,
+  isVerified: false,
+  loading: false,
+  error: null,
+  appLoading: true,
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
@@ -56,20 +56,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     queryFn: getCurrentUser,
     retry: false,
     staleTime: 1000 * 60 * 60 * 24,
+    gcTime: 1000 * 60 * 60 * 24,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   useEffect(() => {
-    if (isPending) {
-      setState((prev) => ({ ...prev, loading: true }));
-    } else {
-      setState((prev) => ({
-        ...prev,
-        user: data,
-        isAuthenticated: !!data,
-        loading: false,
-        appLoading: false,
-      }));
-    }
+    setState((prev) => ({
+      ...prev,
+      user: data?.user || null,
+      isAuthenticated: !!data?.user,
+      isVerified: data?.user?.isVerified || false,
+      loading: isPending,
+      appLoading: isPending,
+      error: data ? null : prev.error,
+    }));
   }, [data, isPending]);
 
   const registerMutation = useMutation({
@@ -78,10 +79,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
     },
     onSuccess: (data) => {
+      queryClient.setQueryData(["currentUser"], data.user);
+
       setState((prev) => ({
         ...prev,
-        user: data?.user || null,
-        isAuthenticated: false,
+        user: data.user,
+        isAuthenticated: !!data.user,
+        isVerified: data.user.isVerified,
         loading: false,
         error: null,
       }));
@@ -100,18 +104,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     onMutate: () => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
     },
-    onSuccess: async () => {
-      const currentUser = await queryClient.ensureQueryData({
-        queryKey: ["currentUser"],
-        queryFn: getCurrentUser,
-      });
-      setState({
-        user: currentUser,
+    onSuccess: async (data) => {
+      queryClient.setQueryData(["currentUser"], data.user);
+
+      setState((prev) => ({
+        ...prev,
+        user: data.user,
         isAuthenticated: true,
+        isVerified: data.user?.isVerified || false,
         loading: false,
         error: null,
         appLoading: false,
-      });
+      }));
     },
     onError: (err: any) => {
       setState((prev) => ({
@@ -128,18 +132,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
     },
     onSuccess: () => {
+      queryClient.clear();
       setState({
         ...initialState,
         appLoading: false,
       });
-      queryClient.removeQueries();
     },
     onError: (err: any) => {
-      setState((prev) => ({
-        ...prev,
+      queryClient.clear();
+      setState({
+        ...initialState,
+        appLoading: false,
         loading: false,
         error: err?.response?.data?.message || "Logout failed",
-      }));
+      });
     },
   });
 
@@ -161,35 +167,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     },
   });
 
-  const login = async (data: LoginPayload) => {
-    await loginMutation.mutateAsync(data);
+  const resetPasswordMutation = useMutation({
+    mutationFn: (data: ResetPasswordPayload) => {
+      const { confirmPassword, ...resetData } = data;
+      return resetPasswordService(resetData);
+    },
+    onMutate: () => {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["currentUser"], data.user);
+
+      setState((prev) => ({
+        ...prev,
+        user: data.user,
+        isAuthenticated: true,
+        isVerified: data.user?.isVerified || false,
+        loading: false,
+        error: null,
+      }));
+    },
+    onError: (err: any) => {
+      queryClient.clear();
+      setState({
+        ...initialState,
+        appLoading: false,
+        error: err?.response?.data?.message || "Password reset failed",
+      });
+    },
+  });
+
+  const value = {
+    ...state,
+    login: loginMutation.mutateAsync,
+    register: registerMutation.mutateAsync,
+    logout: logoutMutation.mutateAsync,
+    resendVerification: resendVerificationMutation.mutateAsync,
+    resetPassword: resetPasswordMutation.mutateAsync,
   };
 
-  const register = async (data: RegisterPayload) => {
-    await registerMutation.mutateAsync(data);
-  };
-
-  const logout = async () => {
-    await logoutMutation.mutateAsync();
-  };
-
-  const resendVerification = async () => {
-    await resendVerificationMutation.mutateAsync();
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        ...state,
-        login,
-        register,
-        logout,
-        resendVerification,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 // Hook to use auth

@@ -91,6 +91,8 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     refreshTokens,
     verificationToken: _verificationToken,
     verificationTokenExpiry,
+    passwordResetToken,
+    passwordResetExpiry,
     ...safeUser
   } = user.toObject();
 
@@ -132,7 +134,7 @@ const verifyUser = asyncHandler(async (req: Request, res: Response) => {
 
   const user = await User.findOne({
     verificationToken: hashedToken,
-    /* verificationTokenExpiry: { $gt: new Date() }, */
+    verificationTokenExpiry: { $gt: new Date() },
   }).select("-password -refreshToken");
 
   if (!user) {
@@ -247,6 +249,8 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     refreshTokens,
     verificationToken,
     verificationTokenExpiry,
+    passwordResetToken,
+    passwordResetExpiry,
     ...safeUser
   } = user.toObject();
 
@@ -285,7 +289,7 @@ const logoutUser = asyncHandler(async (req: Request, res: Response) => {
     return res
       .status(200)
       .clearCookie("accessToken", cookieOptions)
-      .json(new ApiResponse(200, {}, "User already logged out"));
+      .json(new ApiResponse(200, null, "User already logged out"));
   }
 
   const hashedRefreshToken = crypto
@@ -308,7 +312,7 @@ const logoutUser = asyncHandler(async (req: Request, res: Response) => {
     .status(200)
     .clearCookie("accessToken", cookieOptions)
     .clearCookie("refreshToken", cookieOptions)
-    .json(new ApiResponse(200, {}, "User logged out successfully"));
+    .json(new ApiResponse(200, null, "User logged out successfully"));
 });
 
 const getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
@@ -316,7 +320,9 @@ const getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
 
   res
     .status(200)
-    .json(new ApiResponse(200, req.user, "User fetched successfully"));
+    .json(
+      new ApiResponse(200, { user: req.user }, "User fetched successfully")
+    );
 });
 
 // Add this to your user.controller.js file
@@ -345,7 +351,7 @@ const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
   const resetToken = user.generatePasswordResetToken();
   await user.save({ validateBeforeSave: false });
 
-  const resetUrl = `${process.env.CORS_ORIGIN_PROD}/reset-password?token=${resetToken}&email=${user.email}`;
+  const resetUrl = `${process.env.CORS_ORIGIN_LOCAL}/reset-password?token=${resetToken}&email=${user.email}`;
 
   try {
     await sendPasswordResetEmail(user.email, resetUrl);
@@ -379,6 +385,8 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const { password, token, email }: ResetPasswordBody = req.body;
+
+  console.log(req.body);
 
   if (!password || !token || !email) {
     throw new ApiError(400, "Invalid request.");

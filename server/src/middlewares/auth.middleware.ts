@@ -25,7 +25,7 @@ export const verifyJWT = asyncHandler(
     if (!token) {
       throw new ApiError(401, "Unauthorized: No token provided.");
     }
-    
+
     try {
       const decodedToken = jwt.verify(
         token,
@@ -33,7 +33,7 @@ export const verifyJWT = asyncHandler(
       ) as JwtPayload;
 
       const user = await User.findById(decodedToken?._id).select(
-        "-password -refreshTokens"
+        "-password -refreshTokens -verificationToken -verificationTokenExpiry -passwordResetToken -passwordResetExpiry"
       );
 
       if (!user) {
@@ -92,7 +92,15 @@ export const verifyJWT = asyncHandler(
       res.cookie("refreshToken", newRefreshToken, cookieOptions);
 
       // Attach the user to the request and proceed
-      const { password: _, refreshTokens, ...safeUser } = user.toObject();
+      const {
+        password: _,
+        refreshTokens,
+        verificationToken,
+        verificationTokenExpiry,
+        passwordResetToken,
+        passwordResetExpiry,
+        ...safeUser
+      } = user.toObject();
       req.user = safeUser;
       return next();
     }

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../contexts/AuthContext";
 import { Loader } from "lucide-react";
+import VerifyEmail from "@/pages/VerifyEmail";
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -14,7 +15,7 @@ function AuthLayout({ children, authentication = true }: AuthLayoutProps) {
   const navigate = useNavigate();
   const [loader, setLoader] = useState(true);
 
-  const { isAuthenticated, loading, appLoading } = useAuth();
+  const { isAuthenticated, loading, appLoading, isVerified } = useAuth();
 
   useEffect(() => {
     setLoader(true);
@@ -36,7 +37,7 @@ function AuthLayout({ children, authentication = true }: AuthLayoutProps) {
       <Loader className="w-12 h-12 animate-spin" />
     </div>
   ) : (
-    <>{children}</>
+    <>{isVerified ? children : <VerifyEmail />}</>
   );
 }
 

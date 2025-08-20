@@ -10,6 +10,7 @@ import {
   LogOut,
   Settings,
   User as UserIcon,
+  LayoutDashboard,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -62,6 +63,10 @@ const UserDropdown = () => {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+            <LayoutDashboard className="mr-2 h-4 w-4" />
+            <span>Dashboard</span>
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate(`/profile/${user._id}`)}>
             <UserIcon className="mr-2 h-4 w-4" />
             <span>Profile</span>
@@ -245,6 +250,17 @@ const MobileMenu = ({ isOpen, onClose, isAuthenticated, user }) => {
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
               </div>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => {
+                  onClose();
+                  navigate("/dashboard");
+                }}
+              >
+                <LayoutDashboard className="mr-2 h-4 w-4" />
+                Dashboard
+              </Button>
               <Button
                 variant="outline"
                 className="w-full justify-start"

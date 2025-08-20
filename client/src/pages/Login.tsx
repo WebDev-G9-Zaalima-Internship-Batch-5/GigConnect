@@ -24,6 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "react-router-dom";
 
 type FormValues = z.infer<typeof loginFormSchema>;
 
@@ -31,6 +32,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const { login, loading, error } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -46,7 +48,12 @@ const Login = () => {
       password: values.password,
     });
 
-    navigate("/dashboard");
+    const from =
+      location.state?.from?.pathname && location.state.from.pathname !== "/"
+        ? location.state.from.pathname
+        : "/dashboard";
+
+    navigate(from, { replace: true });
   };
 
   return (

@@ -1,44 +1,46 @@
 // src/components/AuthLayout.tsx
-import { useEffect, useState, ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
-
+import { ReactNode } from "react";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Loader } from "lucide-react";
 import VerifyEmail from "@/pages/VerifyEmail";
+import CompleteProfile from "@/pages/CompleteProfile";
 
 interface AuthLayoutProps {
   children: ReactNode;
-  authentication?: boolean; // true = requires auth, false = requires no-auth
+  authentication?: boolean; // true = requires auth, false = Only for public routes, Authenticated users not allowed
 }
 
-function AuthLayout({ children, authentication = true }: AuthLayoutProps) {
-  const navigate = useNavigate();
-  const [loader, setLoader] = useState(true);
+export default function AuthLayout({
+  children,
+  authentication = true,
+}: AuthLayoutProps) {
+  const { isAuthenticated, appLoading, isVerified, isProfileComplete } =
+    useAuth();
+  const location = useLocation();
 
-  const { isAuthenticated, loading, appLoading, isVerified } = useAuth();
+  if (appLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-svh">
+        <Loader className="w-12 h-12 animate-spin" />
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    setLoader(true);
+  if (!authentication) {
+    if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+    return <>{children}</>;
+  }
 
-    if (!appLoading && !loading) {
-      if (authentication && !isAuthenticated) {
-        navigate("/login");
-        setLoader(false);
-      } else if (!authentication && isAuthenticated) {
-        navigate("/dashboard");
-      } else {
-        setLoader(false);
-      }
-    }
-  }, [isAuthenticated, authentication, navigate, loading, appLoading]);
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
 
-  return appLoading ? (
-    <div className="flex items-center justify-center min-h-svh">
-      <Loader className="w-12 h-12 animate-spin" />
-    </div>
-  ) : (
-    <>{!authentication || isVerified ? children : <VerifyEmail />}</>
-  );
+  // Authenticated but not verified
+  if (!isVerified) return <VerifyEmail />;
+
+  // Verified but profile incomplete
+  if (!isProfileComplete) return <CompleteProfile />;
+
+  return <>{children}</>;
 }
-
-export default AuthLayout;

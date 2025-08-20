@@ -122,8 +122,12 @@ const verifyUser = asyncHandler(async (req: Request, res: Response) => {
   const { token } = req.query;
 
   if (!token || typeof token !== "string") {
+    const corsOrigin =
+      process.env.NODE_ENV === "development"
+        ? process.env.CORS_ORIGIN_LOCAL
+        : process.env.CORS_ORIGIN_PROD;
     return res.redirect(
-      `${process.env.CORS_ORIGIN}/verification-failed?error=invalid_token`
+      `${corsOrigin}/verification-failed?error=invalid_token`
     );
   }
 
@@ -135,7 +139,9 @@ const verifyUser = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findOne({
     verificationToken: hashedToken,
     verificationTokenExpiry: { $gt: new Date() },
-  }).select("-password -refreshToken");
+  }).select(
+    "-password -verificationToken -verificationTokenExpiry -passwordResetToken -passwordResetExpiry"
+  );
 
   if (!user) {
     throw new ApiError(404, "User not found.");
@@ -144,6 +150,7 @@ const verifyUser = asyncHandler(async (req: Request, res: Response) => {
   if (user.isVerified) {
     throw new ApiError(400, "User already verified.");
   }
+  const alreadyLoggedIn = req.user?.toString() === user._id.toString();
 
   user.isVerified = true;
   user.verificationToken = undefined;
@@ -154,7 +161,31 @@ const verifyUser = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(500, "Failed to verify user.");
   }
 
-  res.redirect(`${process.env.CORS_ORIGIN}/dashboard`);
+  const corsOrigin =
+    process.env.NODE_ENV === "development"
+      ? process.env.CORS_ORIGIN_LOCAL
+      : process.env.CORS_ORIGIN_PROD;
+
+  if (alreadyLoggedIn) {
+    return res.redirect(`${corsOrigin}/dashboard`);
+  }
+
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+    user,
+    req
+  );
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict" as const,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  };
+
+  res
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, cookieOptions)
+    .redirect(`${corsOrigin}/dashboard`);
 });
 
 const resendVerificationEmail = asyncHandler(
@@ -325,8 +356,6 @@ const getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
     );
 });
 
-// Add this to your user.controller.js file
-
 const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
 
@@ -429,6 +458,8 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
     refreshTokens,
     verificationToken,
     verificationTokenExpiry,
+    passwordResetToken,
+    passwordResetExpiry,
     ...safeUser
   } = savedUser.toObject();
 

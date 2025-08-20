@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(["currentUser"], data.user);
+      queryClient.setQueryData(["currentUser"], data);
 
       setState((prev) => ({
         ...prev,
@@ -105,7 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
     },
     onSuccess: async (data) => {
-      queryClient.setQueryData(["currentUser"], data.user);
+      queryClient.setQueryData(["currentUser"], data);
 
       setState((prev) => ({
         ...prev,
@@ -176,7 +176,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(["currentUser"], data.user);
+      queryClient.setQueryData(["currentUser"], data);
 
       setState((prev) => ({
         ...prev,

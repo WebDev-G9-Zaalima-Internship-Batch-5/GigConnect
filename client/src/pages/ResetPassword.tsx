@@ -75,7 +75,7 @@ const ResetPassword = () => {
     try {
       await resetPassword(values as ResetPasswordPayload);
       toast.success("Password reset successful!");
-      navigate("/");
+      navigate("/dashboard");
     } catch (error: any) {
       toast.error(error?.message || "Failed to reset password");
     }

@@ -25,7 +25,7 @@ function AuthLayout({ children, authentication = true }: AuthLayoutProps) {
         navigate("/login");
         setLoader(false);
       } else if (!authentication && isAuthenticated) {
-        navigate(-1);
+        navigate("/dashboard");
       } else {
         setLoader(false);
       }
@@ -37,7 +37,7 @@ function AuthLayout({ children, authentication = true }: AuthLayoutProps) {
       <Loader className="w-12 h-12 animate-spin" />
     </div>
   ) : (
-    <>{isVerified ? children : <VerifyEmail />}</>
+    <>{!authentication || isVerified ? children : <VerifyEmail />}</>
   );
 }
 

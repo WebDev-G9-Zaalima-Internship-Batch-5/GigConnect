@@ -6,6 +6,8 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import ClientDashboard from "./pages/ClientDashboard";
 import FreelancerDashboard from "./pages/FreelancerDashboard";
 import ClientProfile from "./pages/ClientProfile";
@@ -20,7 +22,7 @@ const queryClient = new QueryClient();
 
 const App = () => {
   const router = createBrowserRouter([
-    // Public route
+    // Public routes
     {
       path: "/",
       element: <Home />,
@@ -42,7 +44,7 @@ const App = () => {
       element: <FreelancerProfile />,
     },
 
-    //  Unauthenticated Only routes
+    // Unauthenticated Only routes
     {
       path: "/login",
       element: (
@@ -56,6 +58,22 @@ const App = () => {
       element: (
         <AuthLayout authentication={false}>
           <Signup />
+        </AuthLayout>
+      ),
+    },
+    {
+      path: "/forgot-password",
+      element: (
+        <AuthLayout authentication={false}>
+          <ForgotPassword />
+        </AuthLayout>
+      ),
+    },
+    {
+      path: "/reset-password",
+      element: (
+        <AuthLayout authentication={false}>
+          <ResetPassword />
         </AuthLayout>
       ),
     },
@@ -78,7 +96,7 @@ const App = () => {
       ),
     },
 
-    // Catch-all route
+    // 404 route
     {
       path: "*",
       element: <NotFound />,
@@ -90,7 +108,7 @@ const App = () => {
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
-          <Sonner />
+          <Sonner position="top-center" />
           <RouterProvider router={router} />
         </TooltipProvider>
       </AuthProvider>

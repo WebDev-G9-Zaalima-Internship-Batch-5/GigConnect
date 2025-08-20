@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +36,8 @@ type FormValues = z.infer<typeof formSchema>;
 const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const { register, loading, error } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -56,6 +58,13 @@ const Signup = () => {
       role: data.userType,
       fullName,
     });
+
+    const from =
+      location.state?.from?.pathname && location.state.from.pathname !== "/"
+        ? location.state.from.pathname
+        : "/dashboard";
+
+    navigate(from, { replace: true });
   };
 
   return (

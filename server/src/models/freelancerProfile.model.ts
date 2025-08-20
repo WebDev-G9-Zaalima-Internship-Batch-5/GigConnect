@@ -66,7 +66,7 @@ export interface IFreelancerProfile extends Document {
     behance?: string;
     dribbble?: string;
   };
-  isProfileComplete: boolean;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -209,10 +209,6 @@ const FreelancerProfileSchema = new Schema<IFreelancerProfile>(
       portfolio: { type: String },
       behance: { type: String },
       dribbble: { type: String },
-    },
-    isProfileComplete: {
-      type: Boolean,
-      default: false,
     },
   },
   {

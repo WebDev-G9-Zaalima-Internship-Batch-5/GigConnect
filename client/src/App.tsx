@@ -10,11 +10,11 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import ClientDashboard from "./pages/ClientDashboard";
 import FreelancerDashboard from "./pages/FreelancerDashboard";
-import ClientProfile from "./pages/ClientProfile";
-import FreelancerProfile from "./pages/FreelancerProfile";
+import Profile from "./pages/Profile";
 import FindWork from "./pages/FindWork";
 import FindTalent from "./pages/FindTalent";
 import NotFound from "./pages/NotFound";
+import CompleteProfile from "./pages/CompleteProfile";
 import { AuthProvider } from "./contexts/AuthContext";
 import AuthLayout from "./components/AuthLayout";
 import Dashboard from "./pages/Dashboard";
@@ -37,12 +37,8 @@ const App = () => {
       element: <FindTalent />,
     },
     {
-      path: "/client-profile",
-      element: <ClientProfile />,
-    },
-    {
-      path: "/freelancer-profile",
-      element: <FreelancerProfile />,
+      path: "/profile/:id?",
+      element: <Profile />,
     },
 
     // Unauthenticated Only routes
@@ -85,6 +81,14 @@ const App = () => {
       element: (
         <AuthLayout authentication={true}>
           <Dashboard />
+        </AuthLayout>
+      ),
+    },
+    {
+      path: "/complete-profile",
+      element: (
+        <AuthLayout authentication={true}>
+          <CompleteProfile />
         </AuthLayout>
       ),
     },

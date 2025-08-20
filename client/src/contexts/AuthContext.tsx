@@ -23,6 +23,7 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isVerified: boolean;
+  isProfileComplete: boolean;
   loading: boolean;
   error: string | null;
   appLoading: boolean;
@@ -42,6 +43,7 @@ const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
   isVerified: false,
+  isProfileComplete: false,
   loading: false,
   error: null,
   appLoading: true,
@@ -67,6 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       user: data?.user || null,
       isAuthenticated: !!data?.user,
       isVerified: data?.user?.isVerified || false,
+      isProfileComplete: data?.user?.isProfileComplete || false,
       loading: isPending,
       appLoading: isPending,
       error: data ? null : prev.error,
@@ -86,6 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user: data.user,
         isAuthenticated: !!data.user,
         isVerified: data.user.isVerified,
+        isProfileComplete: data.user.isProfileComplete,
         loading: false,
         error: null,
       }));
@@ -112,6 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user: data.user,
         isAuthenticated: true,
         isVerified: data.user?.isVerified || false,
+        isProfileComplete: data.user?.isProfileComplete || false,
         loading: false,
         error: null,
         appLoading: false,
@@ -183,6 +188,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user: data.user,
         isAuthenticated: true,
         isVerified: data.user?.isVerified || false,
+        isProfileComplete: data.user?.isProfileComplete || false,
         loading: false,
         error: null,
       }));

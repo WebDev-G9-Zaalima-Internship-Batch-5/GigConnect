@@ -26,7 +26,6 @@ export interface IClientProfile extends Document {
     projectUpdates: boolean;
     promotionalEmails: boolean;
   };
-  isProfileComplete: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -95,10 +94,6 @@ const ClientProfileSchema = new Schema<IClientProfile>(
       smsNotifications: { type: Boolean, default: false },
       projectUpdates: { type: Boolean, default: true },
       promotionalEmails: { type: Boolean, default: false },
-    },
-    isProfileComplete: {
-      type: Boolean,
-      default: false,
     },
   },
   {

@@ -40,6 +40,7 @@ export interface IUser extends Document {
     userAgent: string;
   }[];
   isVerified: boolean;
+  isProfileComplete: boolean;
   isActive: boolean;
   verificationToken?: string;
   verificationTokenExpiry?: Date;
@@ -107,6 +108,11 @@ const UserSchema = new Schema<IUser>(
       },
     ],
     isVerified: {
+      type: Boolean,
+      default: false,
+      required: true,
+    },
+    isProfileComplete: {
       type: Boolean,
       default: false,
       required: true,

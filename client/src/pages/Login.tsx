@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,6 +30,7 @@ type FormValues = z.infer<typeof loginFormSchema>;
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const { login, loading, error } = useAuth();
+  const navigate = useNavigate();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -39,11 +40,13 @@ const Login = () => {
     },
   });
 
-  const onSubmit = (values: FormValues) => {
-    login({
+  const onSubmit = async (values: FormValues) => {
+    await login({
       email: values.email,
       password: values.password,
     });
+
+    navigate("/dashboard");
   };
 
   return (

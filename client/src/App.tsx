@@ -17,6 +17,7 @@ import FindTalent from "./pages/FindTalent";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./contexts/AuthContext";
 import AuthLayout from "./components/AuthLayout";
+import Dashboard from "./pages/Dashboard";
 
 const queryClient = new QueryClient();
 
@@ -80,18 +81,10 @@ const App = () => {
 
     // Authenticated Only routes
     {
-      path: "/client-dashboard",
+      path: "/dashboard",
       element: (
         <AuthLayout authentication={true}>
-          <ClientDashboard />
-        </AuthLayout>
-      ),
-    },
-    {
-      path: "/freelancer-dashboard",
-      element: (
-        <AuthLayout authentication={true}>
-          <FreelancerDashboard />
+          <Dashboard />
         </AuthLayout>
       ),
     },

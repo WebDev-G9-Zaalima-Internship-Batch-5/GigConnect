@@ -30,9 +30,13 @@ export const verifyJWT = asyncHandler(
       const decodedToken = jwt.verify(
         token,
         process.env.ACCESS_TOKEN_SECRET as string
-      ) as JwtPayload;
+      );
 
-      const user = await User.findById(decodedToken?._id).select(
+      if (!decodedToken || typeof decodedToken === "string") {
+        throw new ApiError(401, "Invalid access token.");
+      }
+
+      const user = await User.findById(decodedToken._id).select(
         "-password -refreshTokens -verificationToken -verificationTokenExpiry -passwordResetToken -passwordResetExpiry"
       );
 
@@ -109,24 +113,26 @@ export const verifyJWT = asyncHandler(
 
 export const optionalVerifyJWT = asyncHandler(
   async (req: Request, _: Response, next: NextFunction) => {
-    const accessToken =
+    const token =
       req.cookies?.accessToken ||
       req.header("Authorization")?.replace("Bearer ", "");
 
-    if (accessToken) {
+    if (token) {
       try {
         const decodedToken = jwt.verify(
-          accessToken,
+          token,
           process.env.ACCESS_TOKEN_SECRET as string
         );
 
-        if (decodedToken && typeof decodedToken !== "string") {
-          const user = await User.findById(decodedToken._id).select(
-            "-password -refreshToken"
-          );
-          if (user) {
-            req.user = user;
-          }
+        if (!decodedToken || typeof decodedToken === "string") {
+          throw new ApiError(401, "Invalid access token.");
+        }
+
+        const user = await User.findById(decodedToken._id).select(
+          "-password -refreshTokens -verificationToken -verificationTokenExpiry -passwordResetToken -passwordResetExpiry"
+        );
+        if (user) {
+          req.user = user;
         }
       } catch (_) {
         // Do nothing, as this middleware is for optional check.

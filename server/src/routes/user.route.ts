@@ -9,14 +9,13 @@ import {
   resetPassword,
   verifyUser,
 } from "../controllers/user.controller.js";
-import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { optionalVerifyJWT, verifyJWT } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
 // Public routes
 router.route("/register").post(registerUser);
 router.route("/login").post(loginUser);
-router.route("/verify-email").get(verifyUser);
 router.route("/forgot-password").post(forgotPassword);
 router.route("/reset-password").post(resetPassword);
 
@@ -26,5 +25,8 @@ router
   .route("/resend-verification-email")
   .post(verifyJWT, resendVerificationEmail);
 router.route("/logout").post(verifyJWT, logoutUser);
+
+// Optional verification
+router.route("/verify-email").get(optionalVerifyJWT, verifyUser);
 
 export default router;

@@ -106,7 +106,6 @@ const ClientProfileSchema = new Schema<IClientProfile>(
   }
 );
 
-ClientProfileSchema.index({ userId: 1 });
 ClientProfileSchema.index({ businessType: 1 });
 ClientProfileSchema.index({ industryType: 1 });
 ClientProfileSchema.index({ clientRating: -1 });

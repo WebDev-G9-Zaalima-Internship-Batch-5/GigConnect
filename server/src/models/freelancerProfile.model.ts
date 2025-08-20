@@ -220,7 +220,6 @@ const FreelancerProfileSchema = new Schema<IFreelancerProfile>(
   }
 );
 
-// FreelancerProfileSchema.index({ userId: 1 });
 FreelancerProfileSchema.index({ skills: 1 });
 FreelancerProfileSchema.index({ rating: -1 });
 FreelancerProfileSchema.index({ hourlyRate: 1 });

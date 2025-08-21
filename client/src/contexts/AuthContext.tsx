@@ -203,13 +203,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     },
   });
 
-  const value = {
+  // Ensure we always provide a valid context value
+  const value: AuthContextType = {
     ...state,
-    login: loginMutation.mutateAsync,
-    register: registerMutation.mutateAsync,
-    logout: logoutMutation.mutateAsync,
-    resendVerification: resendVerificationMutation.mutateAsync,
-    resetPassword: resetPasswordMutation.mutateAsync,
+    login: async (data: LoginPayload) => {
+      try {
+        await loginMutation.mutateAsync(data);
+      } catch (error) {
+        throw error;
+      }
+    },
+    register: async (data: RegisterPayload) => {
+      try {
+        await registerMutation.mutateAsync(data);
+      } catch (error) {
+        throw error;
+      }
+    },
+    logout: async () => {
+      try {
+        await logoutMutation.mutateAsync();
+      } catch (error) {
+        throw error;
+      }
+    },
+    resendVerification: async () => {
+      try {
+        await resendVerificationMutation.mutateAsync();
+      } catch (error) {
+        throw error;
+      }
+    },
+    resetPassword: async (data: ResetPasswordPayload) => {
+      try {
+        await resetPasswordMutation.mutateAsync(data);
+      } catch (error) {
+        throw error;
+      }
+    },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

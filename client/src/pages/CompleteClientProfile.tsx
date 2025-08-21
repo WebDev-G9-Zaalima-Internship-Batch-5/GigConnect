@@ -1,9 +1,9 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import React, { Suspense, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -29,10 +29,21 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { Building2, DollarSign, Globe, Info, Mail, Phone } from "lucide-react";
+import {
+  Building2,
+  DollarSign,
+  Globe,
+  Info,
+  Mail,
+  Phone,
+  MapPin,
+  Loader2,
+} from "lucide-react";
+import { clientProfileSchema } from "@/schemas/profile.schema";
+import { LocationData } from "@/types/location";
 
 const businessTypes = [
   { value: "individual", label: "Individual" },
@@ -55,44 +66,54 @@ const industryTypes = [
 
 const currencies = ["USD", "EUR", "GBP", "INR", "CAD", "AUD"];
 
-const formSchema = z.object({
-  companyName: z.string().min(2, {
-    message: "Company name must be at least 2 characters.",
-  }),
-  companyWebsite: z.string().url({
-    message: "Please enter a valid URL.",
-  }).optional(),
-  businessType: z.enum([
-    "individual",
-    "startup",
-    "small_business",
-    "enterprise",
-  ]),
-  industryType: z.string().min(1, {
-    message: "Please select an industry type.",
-  }),
-  description: z.string().min(50, {
-    message: "Description must be at least 50 characters.",
-  }),
-  preferredBudgetRange: z.object({
-    min: z.number().min(0, "Minimum budget must be 0 or more"),
-    max: z.number().min(0, "Maximum budget must be 0 or more"),
-    currency: z.string(),
-  }),
-  communicationPreferences: z.object({
-    emailNotifications: z.boolean(),
-    smsNotifications: z.boolean(),
-    projectUpdates: z.boolean(),
-    promotionalEmails: z.boolean(),
-  }),
-});
+const formSchema = clientProfileSchema;
 
 type FormValues = z.infer<typeof formSchema>;
+
+// Lazy load the LocationPicker with better error handling
+const LocationPicker = React.lazy(() =>
+  import("../components/LocationPicker").catch(() => ({
+    default: () => (
+      <div className="flex items-center justify-center h-64 border rounded-md bg-muted">
+        <p className="text-muted-foreground">Map component unavailable</p>
+      </div>
+    ),
+  }))
+);
+
+const LocationErrorBoundary = React.lazy(async () => {
+  try {
+    const module = await import("../components/LocationErrorBoundary");
+    return { default: module.default };
+  } catch {
+    return {
+      default: class ErrorFallback extends React.Component<{
+        children: React.ReactNode;
+      }> {
+        static getDerivedStateFromError() {
+          return { hasError: true };
+        }
+
+        state = { hasError: false };
+
+        componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+          console.error("Error in fallback boundary:", error, errorInfo);
+        }
+
+        render() {
+          return this.props.children;
+        }
+      },
+    };
+  }
+});
 
 const CompleteClientProfile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [location, setLocation] = useState<LocationData | null>(null);
+  const [mapError, setMapError] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -116,20 +137,57 @@ const CompleteClientProfile = () => {
     },
   });
 
+  const handleLocationChange = useCallback((loc: LocationData) => {
+    setLocation(loc);
+  }, []);
+
   const onSubmit = async (data: FormValues) => {
     try {
       setIsSubmitting(true);
-      // TODO: Call API to save client profile
-      console.log("Submitting client profile:", data);
+
+      const profileData = {
+        ...data,
+        location: location
+          ? {
+              type: "Point",
+              coordinates: location.coordinates,
+              address: location.address,
+              city: location.city,
+              state: location.state,
+              country: location.country,
+              pincode: location.pincode,
+            }
+          : null,
+      };
+
+      console.log("Submitting client profile:", profileData);
+
       // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      navigate("/dashboard");
+      // await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // navigate("/dashboard");
     } catch (error) {
       console.error("Error saving profile:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Loading component for Suspense
+  const MapLoadingFallback = () => (
+    <div className="flex items-center justify-center h-64 border rounded-md bg-muted">
+      <Loader2 className="h-6 w-6 animate-spin" />
+      <span className="ml-2">Loading map...</span>
+    </div>
+  );
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
@@ -174,79 +232,111 @@ const CompleteClientProfile = () => {
                     name="companyWebsite"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Company Website</FormLabel>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                            <Globe className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <Input
-                            placeholder="https://example.com"
-                            className="pl-10"
-                            {...field}
-                          />
-                        </div>
+                        <FormLabel className="flex items-center gap-2">
+                          <Globe className="h-4 w-4" />
+                          Company Website (Optional)
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://example.com" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="businessType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Business Type</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select business type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {businessTypes.map((type) => (
-                                <SelectItem key={type.value} value={type.value}>
-                                  {type.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
+                  {/* Location Picker with Error Boundary */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Business Location
+                    </Label>
+                    <div className="h-64 w-full rounded-md border overflow-hidden">
+                      {!mapError ? (
+                        <Suspense fallback={<MapLoadingFallback />}>
+                          <LocationErrorBoundary>
+                            <LocationPicker onChange={handleLocationChange} />
+                          </LocationErrorBoundary>
+                        </Suspense>
+                      ) : (
+                        <div className="flex items-center justify-center h-full bg-muted">
+                          <div className="text-center">
+                            <p className="text-muted-foreground mb-2">
+                              Map temporarily unavailable
+                            </p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setMapError(false)}
+                            >
+                              Try Again
+                            </Button>
+                          </div>
+                        </div>
                       )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="industryType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Industry</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select industry" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {industryTypes.map((type) => (
-                                <SelectItem key={type} value={type}>
-                                  {type}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    </div>
+                    {location?.coordinates && (
+                      <p className="text-sm text-muted-foreground">
+                        Selected: {location.coordinates.join(", ")}
+                      </p>
+                    )}
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="businessType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Business Type</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select business type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {businessTypes.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="industryType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Industry</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select industry" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {industryTypes.map((type) => (
+                              <SelectItem key={type} value={type}>
+                                {type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <FormField
                     control={form.control}
@@ -466,8 +556,23 @@ const CompleteClientProfile = () => {
                 </div>
 
                 <div className="flex justify-end space-x-4 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate("/dashboard")}
+                    disabled={isSubmitting}
+                  >
+                    Skip for Now
+                  </Button>
                   <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? "Saving..." : "Complete Profile"}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Complete Profile"
+                    )}
                   </Button>
                 </div>
               </form>

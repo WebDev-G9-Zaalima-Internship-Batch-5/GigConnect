@@ -8,6 +8,18 @@ export interface IFreelancerProfile extends Document {
   skills: string[];
   hourlyRate: number;
   availability: "available" | "busy" | "not_available";
+  location?: {
+    type: {
+      type: String;
+      enum: ["Point"];
+    };
+    coordinates: [number, number]; // [longitude, latitude]
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    pincode?: string;
+  };
   portfolio: {
     title: string;
     description: string;
@@ -66,7 +78,6 @@ export interface IFreelancerProfile extends Document {
     behance?: string;
     dribbble?: string;
   };
-
   createdAt: Date;
   updatedAt: Date;
 }
@@ -103,6 +114,21 @@ const FreelancerProfileSchema = new Schema<IFreelancerProfile>(
       type: String,
       enum: ["available", "busy", "not_available"],
       default: "available",
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        index: "2dsphere",
+      },
+      address: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      country: { type: String, trim: true },
+      pincode: { type: String, trim: true },
     },
     portfolio: [
       {
@@ -216,10 +242,13 @@ const FreelancerProfileSchema = new Schema<IFreelancerProfile>(
   }
 );
 
+// Create 2dsphere index for geospatial queries
+FreelancerProfileSchema.index({ "location.coordinates": "2dsphere" });
+
+// Add other indexes as needed
 FreelancerProfileSchema.index({ skills: 1 });
-FreelancerProfileSchema.index({ rating: -1 });
 FreelancerProfileSchema.index({ hourlyRate: 1 });
-FreelancerProfileSchema.index({ availability: 1 });
+FreelancerProfileSchema.index({ rating: -1 });
 FreelancerProfileSchema.index({ specializationAreas: 1 });
 FreelancerProfileSchema.index({ isTopRated: -1 });
 

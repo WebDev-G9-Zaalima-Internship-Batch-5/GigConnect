@@ -8,6 +8,18 @@ export interface IClientProfile extends Document {
   businessType: "individual" | "startup" | "small_business" | "enterprise";
   industryType: string;
   description: string;
+  location?: {
+    type: {
+      type: String;
+      enum: ["Point"];
+    };
+    coordinates: [number, number]; // [longitude, latitude]
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    pincode?: string;
+  };
   projectsPosted: number;
   totalSpent: number;
   activeGigs: number;
@@ -58,6 +70,21 @@ const ClientProfileSchema = new Schema<IClientProfile>(
       type: String,
       maxlength: 1000,
     },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        index: "2dsphere",
+      },
+      address: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      country: { type: String, trim: true },
+      pincode: { type: String, trim: true },
+    },
     projectsPosted: {
       type: Number,
       default: 0,
@@ -89,6 +116,11 @@ const ClientProfileSchema = new Schema<IClientProfile>(
       type: Boolean,
       default: false,
     },
+    preferredBudgetRange: {
+      min: { type: Number, required: true, min: 0 },
+      max: { type: Number, required: true, min: 0 },
+      currency: { type: String, required: true },
+    },
     communicationPreferences: {
       emailNotifications: { type: Boolean, default: true },
       smsNotifications: { type: Boolean, default: false },
@@ -100,6 +132,9 @@ const ClientProfileSchema = new Schema<IClientProfile>(
     timestamps: true,
   }
 );
+
+// Create 2dsphere index for geospatial queries
+ClientProfileSchema.index({ "location.coordinates": "2dsphere" });
 
 ClientProfileSchema.index({ businessType: 1 });
 ClientProfileSchema.index({ industryType: 1 });

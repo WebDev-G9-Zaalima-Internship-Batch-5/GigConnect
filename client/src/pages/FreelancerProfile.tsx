@@ -13,9 +13,9 @@ import { Edit, MapPin, Calendar, Star, DollarSign, Clock, Award, Eye } from "luc
 import Navigation from "@/components/Navigation";
 import avatarPlaceholder from "@/assets/avatar-placeholder.jpg";
 
-const FreelancerProfile = () => {
+const FreelancerProfile = ({ profile }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState({
+  const [profileExample, setProfileExample] = useState({
     name: "Sarah Johnson",
     title: "Full-Stack Developer & UI/UX Designer",
     hourlyRate: "$75",
@@ -293,16 +293,16 @@ const FreelancerProfile = () => {
                       <Label htmlFor="hourly-rate">Hourly Rate</Label>
                       <Input 
                         id="hourly-rate" 
-                        value={profile.hourlyRate} 
-                        onChange={(e) => setProfile(prev => ({ ...prev, hourlyRate: e.target.value }))}
+                        value={profileExample.hourlyRate} 
+                        onChange={(e) => setProfileExample(prev => ({ ...prev, hourlyRate: e.target.value }))}
                       />
                     </div>
                     <div>
                       <Label htmlFor="bio">Professional Bio</Label>
                       <Textarea
                         id="bio"
-                        value={profile.description}
-                        onChange={(e) => setProfile(prev => ({ ...prev, description: e.target.value }))}
+                        value={profileExample.description}
+                        onChange={(e) => setProfileExample(prev => ({ ...prev, description: e.target.value }))}
                         rows={4}
                       />
                     </div>

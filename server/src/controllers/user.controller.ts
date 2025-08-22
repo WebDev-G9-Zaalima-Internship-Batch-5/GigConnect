@@ -269,7 +269,6 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
   // Note: lastLogin will be saved in generateAccessAndRefreshTokens()
   user.lastLogin = new Date();
 
-  // Generate tokens
   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
     user,
     req

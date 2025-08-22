@@ -1,7 +1,13 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import React, { Suspense, useState, useCallback } from "react";
+import React, {
+  Suspense,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,14 +42,15 @@ import {
   Building2,
   DollarSign,
   Globe,
-  Info,
   Mail,
-  Phone,
   MapPin,
   Loader2,
 } from "lucide-react";
 import { clientProfileSchema } from "@/schemas/profile.schema";
 import { LocationData } from "@/types/location";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { completeClientProfile } from "@/services/profile.service";
+import { toast } from "sonner";
 
 const businessTypes = [
   { value: "individual", label: "Individual" },
@@ -64,11 +71,11 @@ const industryTypes = [
   "Other",
 ];
 
-const currencies = ["USD", "EUR", "GBP", "INR", "CAD", "AUD"];
+const currencies = ["INR", "USD", "EUR", "GBP", "CAD", "AUD"];
 
 const formSchema = clientProfileSchema;
 
-type FormValues = z.infer<typeof formSchema>;
+export type CompleteClientProfileFormValues = z.infer<typeof formSchema>;
 
 // Lazy load the LocationPicker with better error handling
 const LocationPicker = React.lazy(() =>
@@ -109,13 +116,35 @@ const LocationErrorBoundary = React.lazy(async () => {
 });
 
 const CompleteClientProfile = () => {
-  const { user } = useAuth();
+  const { user, isProfileComplete } = useAuth();
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  useEffect(() => {
+    if (isProfileComplete) {
+      navigate("/profile");
+    }
+  }, [isProfileComplete, navigate]);
+
+  const queryClient = useQueryClient();
   const [location, setLocation] = useState<LocationData | null>(null);
   const [mapError, setMapError] = useState(false);
+  const locationPickerRef = useRef<HTMLDivElement>(null);
 
-  const form = useForm<FormValues>({
+  const completeClientProfileMutation = useMutation({
+    mutationFn: completeClientProfile,
+    onSuccess: async (data) => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+    },
+    onError: (err: any) => {
+      const message =
+        err?.response?.data?.message ??
+        err?.message ??
+        "Failed to save profile.";
+      toast.error(message);
+    },
+  });
+
+  const form = useForm<CompleteClientProfileFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       companyName: "",
@@ -126,7 +155,7 @@ const CompleteClientProfile = () => {
       preferredBudgetRange: {
         min: 100,
         max: 1000,
-        currency: "USD",
+        currency: "INR",
       },
       communicationPreferences: {
         emailNotifications: true,
@@ -141,35 +170,41 @@ const CompleteClientProfile = () => {
     setLocation(loc);
   }, []);
 
-  const onSubmit = async (data: FormValues) => {
+  const onSubmit = async (data: CompleteClientProfileFormValues) => {
     try {
-      setIsSubmitting(true);
+      if (!location) {
+        form.setError("root", { message: "Location is required" });
+        if (locationPickerRef.current) {
+          locationPickerRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+        return;
+      }
 
-      const profileData = {
+      const profileData: CompleteClientProfileFormValues & {
+        location: LocationData;
+      } = {
         ...data,
-        location: location
-          ? {
-              type: "Point",
-              coordinates: location.coordinates,
-              address: location.address,
-              city: location.city,
-              state: location.state,
-              country: location.country,
-              pincode: location.pincode,
-            }
-          : null,
+        location: {
+          type: "Point",
+          coordinates: location.coordinates,
+          address: location.address,
+          city: location.city,
+          state: location.state,
+          country: location.country,
+          pincode: location.pincode,
+        },
       };
 
-      console.log("Submitting client profile:", profileData);
-
-      // Simulate API call
-      // await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // navigate("/dashboard");
+      try {
+        await completeClientProfileMutation.mutateAsync(profileData);
+      } catch (err: any) {
+        console.error("Error saving profile:", err);
+      }
     } catch (error) {
       console.error("Error saving profile:", error);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -250,7 +285,10 @@ const CompleteClientProfile = () => {
                       <MapPin className="h-4 w-4" />
                       Business Location
                     </Label>
-                    <div className="h-64 w-full rounded-md border overflow-hidden">
+                    <div
+                      className="h-64 w-full rounded-md border overflow-hidden"
+                      ref={locationPickerRef}
+                    >
                       {!mapError ? (
                         <Suspense fallback={<MapLoadingFallback />}>
                           <LocationErrorBoundary>
@@ -275,6 +313,11 @@ const CompleteClientProfile = () => {
                         </div>
                       )}
                     </div>
+                    {form.formState.errors.root && (
+                      <p className="text-sm text-red-500">
+                        {form.formState.errors.root.message}
+                      </p>
+                    )}
                     {location?.coordinates && (
                       <p className="text-sm text-muted-foreground">
                         Selected: {location.coordinates.join(", ")}
@@ -290,7 +333,7 @@ const CompleteClientProfile = () => {
                         <FormLabel>Business Type</FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -318,7 +361,7 @@ const CompleteClientProfile = () => {
                         <FormLabel>Industry</FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -383,11 +426,14 @@ const CompleteClientProfile = () => {
                               <Input
                                 type="number"
                                 min="0"
+                                value={field.value ?? ""}
                                 className="pl-7"
-                                {...field}
                                 onChange={(e) =>
                                   field.onChange(Number(e.target.value))
                                 }
+                                onBlur={field.onBlur}
+                                name={field.name}
+                                ref={field.ref}
                               />
                             </div>
                           </FormControl>
@@ -411,10 +457,13 @@ const CompleteClientProfile = () => {
                                 type="number"
                                 min="0"
                                 className="pl-7"
-                                {...field}
+                                value={field.value ?? ""}
                                 onChange={(e) =>
                                   field.onChange(Number(e.target.value))
                                 }
+                                onBlur={field.onBlur}
+                                name={field.name}
+                                ref={field.ref}
                               />
                             </div>
                           </FormControl>
@@ -431,7 +480,7 @@ const CompleteClientProfile = () => {
                           <FormLabel>Currency</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -557,15 +606,10 @@ const CompleteClientProfile = () => {
 
                 <div className="flex justify-end space-x-4 pt-4">
                   <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => navigate("/dashboard")}
-                    disabled={isSubmitting}
+                    type="submit"
+                    disabled={completeClientProfileMutation.isPending}
                   >
-                    Skip for Now
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
+                    {completeClientProfileMutation.isPending ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Saving...

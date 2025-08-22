@@ -1,8 +1,5 @@
 export interface LocationData {
-  type: {
-    type: string;
-    enum: ["Point"];
-  };
+  type: "Point";
   coordinates: [number, number]; // [longitude, latitude]
   address?: string;
   city?: string;

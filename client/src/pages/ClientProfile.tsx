@@ -11,10 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Edit, MapPin, Calendar, Star, DollarSign, Users } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import avatarPlaceholder from "@/assets/avatar-placeholder.jpg";
+import type { ClientProfile} from "@/types/profile.types";
 
-const ClientProfile = () => {
+const ClientProfile = ({ profile }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState({
+  const [profileExample, setProfileExample] = useState({
     name: "John Mitchell",
     title: "Startup Founder & CEO",
     company: "TechVenture Inc.",
@@ -65,7 +66,7 @@ const ClientProfile = () => {
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="flex flex-col items-center md:items-start">
                   <Avatar className="w-32 h-32 mb-4">
-                    <AvatarImage src={avatarPlaceholder} alt={profile.name} />
+                    <AvatarImage src={avatarPlaceholder} alt={profileExample.name} />
                     <AvatarFallback className="text-2xl">JM</AvatarFallback>
                   </Avatar>
                   <Button variant="outline" size="sm" className="gap-2">
@@ -77,14 +78,14 @@ const ClientProfile = () => {
                 <div className="flex-1">
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h1 className="text-3xl font-bold text-foreground mb-2">{profile.name}</h1>
-                      <p className="text-xl text-muted-foreground mb-2">{profile.title}</p>
-                      <p className="text-lg font-medium text-primary mb-2">{profile.company}</p>
+                      <h1 className="text-3xl font-bold text-foreground mb-2">{profileExample.name}</h1>
+                      <p className="text-xl text-muted-foreground mb-2">{profileExample.title}</p>
+                      <p className="text-lg font-medium text-primary mb-2">{profileExample.company}</p>
                       <div className="flex items-center text-muted-foreground mb-4">
                         <MapPin className="h-4 w-4 mr-2" />
-                        <span>{profile.location}</span>
+                        <span>{profileExample.location}</span>
                         <Calendar className="h-4 w-4 ml-4 mr-2" />
-                        <span>Joined {profile.joinDate}</span>
+                        <span>Joined {profileExample.joinDate}</span>
                       </div>
                     </div>
                     <Button 
@@ -98,7 +99,7 @@ const ClientProfile = () => {
                   </div>
                   
                   <p className="text-muted-foreground leading-relaxed mb-6">
-                    {profile.description}
+                    {profileExample.description}
                   </p>
                   
                   {/* Stats */}
@@ -139,8 +140,8 @@ const ClientProfile = () => {
                           <Label htmlFor="description">Description</Label>
                           <Textarea
                             id="description"
-                            value={profile.description}
-                            onChange={(e) => setProfile(prev => ({ ...prev, description: e.target.value }))}
+                            value={profileExample.description}
+                            onChange={(e) => setProfileExample(prev => ({ ...prev, description: e.target.value }))}
                             rows={4}
                           />
                         </div>
@@ -148,8 +149,8 @@ const ClientProfile = () => {
                           <Label htmlFor="website">Website</Label>
                           <Input
                             id="website"
-                            value={profile.website}
-                            onChange={(e) => setProfile(prev => ({ ...prev, website: e.target.value }))}
+                            value={profileExample.website}
+                            onChange={(e) => setProfileExample(prev => ({ ...prev, website: e.target.value }))}
                           />
                         </div>
                       </div>
@@ -157,12 +158,12 @@ const ClientProfile = () => {
                       <div className="space-y-4">
                         <div>
                           <h4 className="font-medium mb-2">Company Description</h4>
-                          <p className="text-muted-foreground">{profile.description}</p>
+                          <p className="text-muted-foreground">{profileExample.description}</p>
                         </div>
                         <div>
                           <h4 className="font-medium mb-2">Website</h4>
-                          <a href={profile.website} className="text-primary hover:underline">
-                            {profile.website}
+                          <a href={profileExample.website} className="text-primary hover:underline">
+                            {profileExample.website}
                           </a>
                         </div>
                       </div>

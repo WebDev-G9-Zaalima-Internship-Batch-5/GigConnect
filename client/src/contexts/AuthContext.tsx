@@ -12,12 +12,14 @@ import {
   registerUser,
   resendVerificationEmail,
   resetPassword as resetPasswordService,
-  RegisterPayload,
-  LoginPayload,
-  ResetPasswordPayload,
-  User,
 } from "../services/users.service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  User,
+  LoginPayload,
+  RegisterPayload,
+  ResetPasswordPayload,
+} from "@/types/user.types";
 
 interface AuthState {
   user: User | null;
@@ -56,7 +58,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { data, isPending } = useQuery({
     queryKey: ["currentUser"],
     queryFn: getCurrentUser,
-    retry: false,
     staleTime: 1000 * 60 * 60 * 24,
     gcTime: 1000 * 60 * 60 * 24,
     refetchOnWindowFocus: false,

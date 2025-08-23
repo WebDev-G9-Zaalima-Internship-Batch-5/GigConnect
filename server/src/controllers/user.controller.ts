@@ -377,9 +377,15 @@ const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
       ? process.env.CORS_ORIGIN_LOCAL
       : process.env.CORS_ORIGIN_PROD;
 
+  const corsOrigin =
+    process.env.NODE_ENV === "development"
+      ? process.env.CORS_ORIGIN_LOCAL
+      : process.env.CORS_ORIGIN_PROD;
+
   const resetToken = user.generatePasswordResetToken();
   await user.save({ validateBeforeSave: false });
 
+  const resetUrl = `${corsOrigin}/reset-password?token=${resetToken}&email=${user.email}`;
   const resetUrl = `${corsOrigin}/reset-password?token=${resetToken}&email=${user.email}`;
 
   try {

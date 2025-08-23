@@ -99,7 +99,7 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
+    sameSite: "lax" as const,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   };
 
@@ -122,12 +122,11 @@ const verifyUser = asyncHandler(async (req: Request, res: Response) => {
   const { token } = req.query;
 
   const corsOrigin =
-      process.env.NODE_ENV === "development"
-        ? process.env.CORS_ORIGIN_LOCAL
-        : process.env.CORS_ORIGIN_PROD;
+    process.env.NODE_ENV === "development"
+      ? process.env.CORS_ORIGIN_LOCAL
+      : process.env.CORS_ORIGIN_PROD;
 
   if (!token || typeof token !== "string") {
-    
     return res.redirect(
       `${corsOrigin}/verification-failed?error=invalid_token`
     );
@@ -175,7 +174,7 @@ const verifyUser = asyncHandler(async (req: Request, res: Response) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
+    sameSite: "lax" as const,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   };
 
@@ -284,7 +283,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
+    sameSite: "lax" as const,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   };
 
@@ -309,7 +308,7 @@ const logoutUser = asyncHandler(async (req: Request, res: Response) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
+    sameSite: "lax" as const,
   };
 
   if (!refreshToken) {
@@ -467,7 +466,7 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
+    sameSite: "lax" as const,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   };
 

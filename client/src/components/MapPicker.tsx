@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useRef } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -7,19 +7,30 @@ import {
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
+import { MapPin } from "lucide-react";
+import { renderToString } from "react-dom/server";
 
-// Fix for default marker icons in Next.js
-const DefaultIcon = L.icon({
-  iconUrl: "/marker-icon.png",
-  iconRetinaUrl: "/marker-icon-2x.png",
-  shadowUrl: "/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
+// Create a custom marker icon using a Lucide icon
+const createMarkerIcon = () => {
+  const icon = L.divIcon({
+    className: "custom-marker",
+    html: `
+      <div style="
+        color: #2563eb;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">
+           ${renderToString(<MapPin size={24} />)}
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+  });
+  return icon;
+};
 
 interface MapPickerProps {
   onChange: (lat: number, lng: number) => void;
@@ -52,7 +63,7 @@ function MapUpdater({ position }: { position: [number, number] | undefined }) {
   useEffect(() => {
     if (position) {
       try {
-        map.flyTo(position, 13);
+        map.flyTo(position, 13, { duration: 0.5 });
       } catch (error) {
         console.error("Error updating map view:", error);
       }
@@ -64,6 +75,15 @@ function MapUpdater({ position }: { position: [number, number] | undefined }) {
 
 const MapPicker: React.FC<MapPickerProps> = ({ onChange, position }) => {
   const defaultCenter: [number, number] = [20, 0];
+  const markerRef = useRef<L.Marker | null>(null);
+  const markerIcon = createMarkerIcon();
+
+  // Update marker position when it changes
+  useEffect(() => {
+    if (markerRef.current && position) {
+      markerRef.current.setLatLng([position[0], position[1]]);
+    }
+  }, [position]);
 
   try {
     return (
@@ -79,7 +99,15 @@ const MapPicker: React.FC<MapPickerProps> = ({ onChange, position }) => {
         />
         <ClickHandler onSelect={onChange} />
         <MapUpdater position={position} />
-        {position && <Marker position={position} />}
+        {position && (
+          <Marker
+            position={position}
+            icon={markerIcon}
+            ref={(ref) => {
+              if (ref) markerRef.current = ref;
+            }}
+          />
+        )}
       </MapContainer>
     );
   } catch (error) {

@@ -1,13 +1,11 @@
 import { axiosInstance } from "@/utils/axios.util";
 
-import {
-  Profile,
-  UpdateProfileData,
-  ClientProfile,
-  ProfileBase,
-} from "@/types/profile.types";
+import { Profile, UpdateProfileData } from "@/types/profile.types";
 import { LocationData } from "@/types/location";
-import { CompleteClientProfileFormValues } from "@/pages/CompleteClientProfile";
+import {
+  CompleteClientProfileFormValues,
+  CompleteFreelancerProfileFormValues,
+} from "@/schemas/profile.schema";
 
 export const getProfile = async (userId: string) => {
   const res = await axiosInstance.get(`/profiles/${userId}`);
@@ -25,6 +23,19 @@ export const updateProfile = async (
 export const completeClientProfile = async (
   data: CompleteClientProfileFormValues & { location: LocationData }
 ) => {
-  const res = await axiosInstance.post("/profiles/complete-client-profile", data);
+  const res = await axiosInstance.post(
+    "/profiles/complete-client-profile",
+    data
+  );
+  return res.data.data;
+};
+
+export const completeFreelancerProfile = async (
+  data: CompleteFreelancerProfileFormValues
+) => {
+  const res = await axiosInstance.post(
+    "/profiles/complete-freelancer-profile",
+    data
+  );
   return res.data.data;
 };

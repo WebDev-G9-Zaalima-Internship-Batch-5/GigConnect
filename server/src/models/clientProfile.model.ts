@@ -9,10 +9,7 @@ export interface IClientProfile extends Document {
   industryType: string;
   description: string;
   location?: {
-    type: {
-      type: String;
-      enum: ["Point"];
-    };
+    type: "Point";
     coordinates: [number, number]; // [longitude, latitude]
     address?: string;
     city?: string;
@@ -132,9 +129,6 @@ const ClientProfileSchema = new Schema<IClientProfile>(
     timestamps: true,
   }
 );
-
-// Create 2dsphere index for geospatial queries
-ClientProfileSchema.index({ "location.coordinates": "2dsphere" });
 
 ClientProfileSchema.index({ businessType: 1 });
 ClientProfileSchema.index({ industryType: 1 });

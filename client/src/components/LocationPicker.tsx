@@ -3,13 +3,17 @@ import MapPicker from "./MapPicker";
 import LocationSearchBox from "./LocationSearchBox";
 import { LocationData } from "@/types/location";
 import { Button } from "@/components/ui/button";
-import { Locate, Loader2 } from "lucide-react";
+import { Locate, Loader } from "lucide-react";
 
 interface LocationPickerProps {
   onChange: (location: LocationData) => void;
+  onError?: () => void;
 }
 
-const LocationPicker: React.FC<LocationPickerProps> = ({ onChange }) => {
+const LocationPicker: React.FC<LocationPickerProps> = ({
+  onChange,
+  onError,
+}) => {
   const [location, setLocation] = useState<LocationData | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -26,10 +30,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ onChange }) => {
   const handleMapClick = useCallback(
     (lat: number, lng: number) => {
       const newLocation: LocationData = {
-        type: {
-          type: "string",
-          enum: ["Point"],
-        },
+        type: "Point",
         coordinates: [lng, lat],
         displayName: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
       };
@@ -75,10 +76,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ onChange }) => {
       const address = data.address || {};
 
       const newLocation: LocationData = {
-        type: {
-          type: "string",
-          enum: ["Point"],
-        },
+        type: "Point",
         coordinates: [longitude, latitude],
         displayName:
           data.display_name ||
@@ -118,7 +116,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ onChange }) => {
           className="shrink-0"
         >
           {isLocating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader className="h-4 w-4 animate-spin" />
           ) : (
             <Locate className="h-4 w-4" />
           )}
@@ -137,17 +135,6 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ onChange }) => {
           }
         />
       </div>
-      {location && (
-        <p className="mt-2 text-sm text-muted-foreground">
-          Selected:{" "}
-          <span className="font-mono">
-            {location.displayName ||
-              `${location.coordinates[1].toFixed(
-                5
-              )}, ${location.coordinates[0].toFixed(5)}`}
-          </span>
-        </p>
-      )}
     </div>
   );
 };

@@ -142,3 +142,23 @@ export const optionalVerifyJWT = asyncHandler(
     next();
   }
 );
+
+export const isVerifiedUser = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+    if (!user || !user.isVerified) {
+      throw new ApiError(401, "Unauthorized: User is not verified.");
+    }
+    next();
+  }
+);
+
+export const isProfileComplete = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const user = req.user;
+    if (!user || !user.isProfileComplete) {
+      throw new ApiError(401, "Unauthorized: User's profile is not complete.");
+    }
+    next();
+  }
+);

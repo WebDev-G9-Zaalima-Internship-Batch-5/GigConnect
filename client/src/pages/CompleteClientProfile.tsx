@@ -1,13 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import React, {
-  Suspense,
-  useState,
-  useCallback,
-  useRef,
-  useEffect,
-} from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -44,13 +38,17 @@ import {
   Globe,
   Mail,
   MapPin,
-  Loader2,
+  Loader,
 } from "lucide-react";
-import { clientProfileSchema } from "@/schemas/profile.schema";
+import {
+  clientProfileSchema,
+  CompleteClientProfileFormValues,
+} from "@/schemas/profile.schema";
 import { LocationData } from "@/types/location";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { completeClientProfile } from "@/services/profile.service";
 import { toast } from "sonner";
+import LocationPicker from "../components/LocationPicker";
 
 const businessTypes = [
   { value: "individual", label: "Individual" },
@@ -75,65 +73,27 @@ const currencies = ["INR", "USD", "EUR", "GBP", "CAD", "AUD"];
 
 const formSchema = clientProfileSchema;
 
-export type CompleteClientProfileFormValues = z.infer<typeof formSchema>;
-
-// Lazy load the LocationPicker with better error handling
-const LocationPicker = React.lazy(() =>
-  import("../components/LocationPicker").catch(() => ({
-    default: () => (
-      <div className="flex items-center justify-center h-64 border rounded-md bg-muted">
-        <p className="text-muted-foreground">Map component unavailable</p>
-      </div>
-    ),
-  }))
-);
-
-const LocationErrorBoundary = React.lazy(async () => {
-  try {
-    const module = await import("../components/LocationErrorBoundary");
-    return { default: module.default };
-  } catch {
-    return {
-      default: class ErrorFallback extends React.Component<{
-        children: React.ReactNode;
-      }> {
-        static getDerivedStateFromError() {
-          return { hasError: true };
-        }
-
-        state = { hasError: false };
-
-        componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-          console.error("Error in fallback boundary:", error, errorInfo);
-        }
-
-        render() {
-          return this.props.children;
-        }
-      },
-    };
-  }
-});
-
 const CompleteClientProfile = () => {
   const { user, isProfileComplete } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
   useEffect(() => {
     if (isProfileComplete) {
-      navigate("/profile");
+      navigate("/dashboard", { replace: true });
     }
   }, [isProfileComplete, navigate]);
 
-  const queryClient = useQueryClient();
   const [location, setLocation] = useState<LocationData | null>(null);
   const [mapError, setMapError] = useState(false);
   const locationPickerRef = useRef<HTMLDivElement>(null);
 
   const completeClientProfileMutation = useMutation({
     mutationFn: completeClientProfile,
-    onSuccess: async (data) => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      toast.success("Profile completed successfully!");
     },
     onError: (err: any) => {
       const message =
@@ -166,60 +126,54 @@ const CompleteClientProfile = () => {
     },
   });
 
-  const handleLocationChange = useCallback((loc: LocationData) => {
-    setLocation(loc);
+  const handleLocationChange = useCallback(
+    (loc: LocationData) => {
+      setLocation(loc);
+      if (form.formState.errors.root) {
+        form.clearErrors("root");
+      }
+    },
+    [form]
+  );
+
+  const handleLocationError = useCallback(() => {
+    setMapError(true);
   }, []);
 
   const onSubmit = async (data: CompleteClientProfileFormValues) => {
-    try {
-      if (!location) {
-        form.setError("root", { message: "Location is required" });
-        if (locationPickerRef.current) {
-          locationPickerRef.current.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-          });
-        }
-        return;
-      }
-
-      const profileData: CompleteClientProfileFormValues & {
-        location: LocationData;
-      } = {
-        ...data,
-        location: {
-          type: "Point",
-          coordinates: location.coordinates,
-          address: location.address,
-          city: location.city,
-          state: location.state,
-          country: location.country,
-          pincode: location.pincode,
-        },
-      };
-
-      try {
-        await completeClientProfileMutation.mutateAsync(profileData);
-      } catch (err: any) {
-        console.error("Error saving profile:", err);
-      }
-    } catch (error) {
-      console.error("Error saving profile:", error);
+    if (!location) {
+      form.setError("root", {
+        message: "Please select your business location on the map",
+      });
+      locationPickerRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      return;
     }
-  };
 
-  // Loading component for Suspense
-  const MapLoadingFallback = () => (
-    <div className="flex items-center justify-center h-64 border rounded-md bg-muted">
-      <Loader2 className="h-6 w-6 animate-spin" />
-      <span className="ml-2">Loading map...</span>
-    </div>
-  );
+    const profileData: CompleteClientProfileFormValues & {
+      location: LocationData;
+    } = {
+      ...data,
+      location: {
+        type: "Point",
+        coordinates: location.coordinates,
+        address: location.address,
+        city: location.city,
+        state: location.state,
+        country: location.country,
+        pincode: location.pincode,
+      },
+    };
+
+    completeClientProfileMutation.mutate(profileData);
+  };
 
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader className="h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -253,7 +207,7 @@ const CompleteClientProfile = () => {
                     name="companyName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Company Name</FormLabel>
+                        <FormLabel>Company Name *</FormLabel>
                         <FormControl>
                           <Input placeholder="Your company name" {...field} />
                         </FormControl>
@@ -272,29 +226,32 @@ const CompleteClientProfile = () => {
                           Company Website (Optional)
                         </FormLabel>
                         <FormControl>
-                          <Input placeholder="https://example.com" {...field} />
+                          <Input
+                            placeholder="https://example.com"
+                            type="url"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  {/* Location Picker with Error Boundary */}
+                  {/* Location Picker */}
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
                       <MapPin className="h-4 w-4" />
-                      Business Location
+                      Business Location *
                     </Label>
                     <div
                       className="h-64 w-full rounded-md border overflow-hidden"
                       ref={locationPickerRef}
                     >
                       {!mapError ? (
-                        <Suspense fallback={<MapLoadingFallback />}>
-                          <LocationErrorBoundary>
-                            <LocationPicker onChange={handleLocationChange} />
-                          </LocationErrorBoundary>
-                        </Suspense>
+                        <LocationPicker
+                          onChange={handleLocationChange}
+                          onError={handleLocationError}
+                        />
                       ) : (
                         <div className="flex items-center justify-center h-full bg-muted">
                           <div className="text-center">
@@ -314,83 +271,89 @@ const CompleteClientProfile = () => {
                       )}
                     </div>
                     {form.formState.errors.root && (
-                      <p className="text-sm text-red-500">
+                      <p className="text-sm text-destructive">
                         {form.formState.errors.root.message}
                       </p>
                     )}
-                    {location?.coordinates && (
+                    {location && (
                       <p className="text-sm text-muted-foreground">
-                        Selected: {location.coordinates.join(", ")}
+                        📍{" "}
+                        {location.address ||
+                          (location.city && location.state
+                            ? `${location.city}, ${location.state}`
+                            : location.displayName)}
                       </p>
                     )}
                   </div>
 
-                  <FormField
-                    control={form.control}
-                    name="businessType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Business Type</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select business type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {businessTypes.map((type) => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="businessType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Business Type *</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select business type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {businessTypes.map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <FormField
-                    control={form.control}
-                    name="industryType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Industry</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select industry" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {industryTypes.map((type) => (
-                              <SelectItem key={type} value={type}>
-                                {type}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    <FormField
+                      control={form.control}
+                      name="industryType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Industry *</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select industry" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {industryTypes.map((type) => (
+                                <SelectItem key={type} value={type}>
+                                  {type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <FormField
                     control={form.control}
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>About Your Business</FormLabel>
+                        <FormLabel>About Your Business *</FormLabel>
                         <FormControl>
                           <Textarea
                             placeholder="Tell us about your business, projects, and what you're looking for..."
-                            className="min-h-[120px]"
+                            className="min-h-[120px] resize-none"
                             {...field}
                           />
                         </FormControl>
@@ -417,25 +380,25 @@ const CompleteClientProfile = () => {
                       name="preferredBudgetRange.min"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Minimum Budget</FormLabel>
+                          <FormLabel>Minimum Budget *</FormLabel>
                           <FormControl>
-                            <div className="relative">
-                              <span className="absolute left-3 top-2 text-muted-foreground">
-                                $
-                              </span>
-                              <Input
-                                type="number"
-                                min="0"
-                                value={field.value ?? ""}
-                                className="pl-7"
-                                onChange={(e) =>
-                                  field.onChange(Number(e.target.value))
-                                }
-                                onBlur={field.onBlur}
-                                name={field.name}
-                                ref={field.ref}
-                              />
-                            </div>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="100"
+                              value={field.value || ""}
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value
+                                    ? Number(e.target.value)
+                                    : undefined
+                                )
+                              }
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -447,25 +410,25 @@ const CompleteClientProfile = () => {
                       name="preferredBudgetRange.max"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Maximum Budget</FormLabel>
+                          <FormLabel>Maximum Budget *</FormLabel>
                           <FormControl>
-                            <div className="relative">
-                              <span className="absolute left-3 top-2 text-muted-foreground">
-                                $
-                              </span>
-                              <Input
-                                type="number"
-                                min="0"
-                                className="pl-7"
-                                value={field.value ?? ""}
-                                onChange={(e) =>
-                                  field.onChange(Number(e.target.value))
-                                }
-                                onBlur={field.onBlur}
-                                name={field.name}
-                                ref={field.ref}
-                              />
-                            </div>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="1000"
+                              value={field.value || ""}
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value
+                                    ? Number(e.target.value)
+                                    : undefined
+                                )
+                              }
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -477,7 +440,7 @@ const CompleteClientProfile = () => {
                       name="preferredBudgetRange.currency"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Currency</FormLabel>
+                          <FormLabel>Currency *</FormLabel>
                           <Select
                             onValueChange={field.onChange}
                             value={field.value}
@@ -509,7 +472,7 @@ const CompleteClientProfile = () => {
                     Communication Preferences
                   </h3>
 
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="communicationPreferences.emailNotifications"
@@ -519,8 +482,8 @@ const CompleteClientProfile = () => {
                             <FormLabel className="text-base">
                               Email Notifications
                             </FormLabel>
-                            <FormDescription>
-                              Receive important account notifications via email
+                            <FormDescription className="text-sm">
+                              Receive important account notifications
                             </FormDescription>
                           </div>
                           <FormControl>
@@ -542,7 +505,7 @@ const CompleteClientProfile = () => {
                             <FormLabel className="text-base">
                               SMS Notifications
                             </FormLabel>
-                            <FormDescription>
+                            <FormDescription className="text-sm">
                               Receive important notifications via SMS
                             </FormDescription>
                           </div>
@@ -565,7 +528,7 @@ const CompleteClientProfile = () => {
                             <FormLabel className="text-base">
                               Project Updates
                             </FormLabel>
-                            <FormDescription>
+                            <FormDescription className="text-sm">
                               Get updates about your active projects
                             </FormDescription>
                           </div>
@@ -588,7 +551,7 @@ const CompleteClientProfile = () => {
                             <FormLabel className="text-base">
                               Promotional Emails
                             </FormLabel>
-                            <FormDescription>
+                            <FormDescription className="text-sm">
                               Receive newsletters and promotional offers
                             </FormDescription>
                           </div>
@@ -604,14 +567,15 @@ const CompleteClientProfile = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-end space-x-4 pt-4">
+                <div className="flex justify-end space-x-4 pt-4 border-t">
                   <Button
                     type="submit"
                     disabled={completeClientProfileMutation.isPending}
+                    className="min-w-[120px]"
                   >
                     {completeClientProfileMutation.isPending ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader className="mr-2 h-4 w-4 animate-spin" />
                         Saving...
                       </>
                     ) : (

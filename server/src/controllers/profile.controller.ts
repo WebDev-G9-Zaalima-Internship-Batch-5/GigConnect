@@ -3,9 +3,20 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ClientProfile } from "../models/clientProfile.model.js";
-import { FreelancerProfile } from "../models/freelancerProfile.model.js";
+import {
+  FreelancerProfile,
+  IFreelancerProfile,
+} from "../models/freelancerProfile.model.js";
 import { User } from "../models/user.model.js";
-import mongoose, { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId, Types } from "mongoose";
+
+const isNumberLike = (v: any) => {
+  if (typeof v === "number") return Number.isFinite(v);
+  if (typeof v === "string" && v.trim() !== "") return !Number.isNaN(Number(v));
+  return false;
+};
+
+const toNumber = (v: any) => (typeof v === "number" ? v : Number(v));
 
 const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
@@ -133,6 +144,9 @@ const completeClientProfile = asyncHandler(
   async (req: Request, res: Response) => {
     const user = req.user;
 
+    if (user.isProfileComplete) {
+      throw new ApiError(400, "Profile already completed");
+    }
     const {
       companyName,
       companyWebsite,
@@ -244,4 +258,207 @@ const completeClientProfile = asyncHandler(
   }
 );
 
-export { getUserProfile, updateUserProfile, completeClientProfile };
+const completeFreelancerProfile = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = (req as any).user;
+
+    if (user.isProfileComplete) {
+      throw new ApiError(400, "Profile already completed");
+    }
+
+    const {
+      title,
+      bio,
+      skills,
+      hourlyRate,
+      availability,
+      location,
+      workPreferences,
+      languages,
+    } = req.body;
+
+    if (!title || typeof title !== "string" || title.trim() === "") {
+      throw new ApiError(400, "Title is required");
+    }
+    if (!bio || typeof bio !== "string" || bio.trim() === "") {
+      throw new ApiError(400, "Bio is required");
+    }
+
+    if (!Array.isArray(skills) || skills.length === 0) {
+      throw new ApiError(400, "At least one skill is required");
+    }
+    for (const s of skills) {
+      if (typeof s !== "string" || s.trim() === "") {
+        throw new ApiError(400, "Each skill must be a non-empty string");
+      }
+    }
+
+    if (!Array.isArray(languages) || languages.length === 0) {
+      throw new ApiError(400, "At least one language is required");
+    }
+    for (const lang of languages) {
+      if (
+        !lang ||
+        typeof lang.language !== "string" ||
+        lang.language.trim() === ""
+      ) {
+        throw new ApiError(
+          400,
+          "Each language must include a non-empty 'language' field"
+        );
+      }
+      if (!lang.proficiency || typeof lang.proficiency !== "string") {
+        throw new ApiError(
+          400,
+          "Each language must include a 'proficiency' field"
+        );
+      }
+    }
+
+    if (!isNumberLike(hourlyRate)) {
+      throw new ApiError(400, "hourlyRate must be a number");
+    }
+    const hourlyRateNum = toNumber(hourlyRate);
+    if (hourlyRateNum <= 0) {
+      throw new ApiError(400, "hourlyRate must be greater than 0");
+    }
+
+    if (!location || typeof location !== "object") {
+      throw new ApiError(400, "location object is required with coordinates");
+    }
+    if (
+      !Array.isArray(location.coordinates) ||
+      location.coordinates.length !== 2
+    ) {
+      throw new ApiError(
+        400,
+        "location.coordinates must be an array [longitude, latitude]"
+      );
+    }
+    const lon = Number(location.coordinates[0]);
+    const lat = Number(location.coordinates[1]);
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+      throw new ApiError(
+        400,
+        "location.coordinates must contain numeric longitude and latitude"
+      );
+    }
+
+    if (lon < -180 || lon > 180) {
+      throw new ApiError(400, "Longitude must be between -180 and 180");
+    }
+    if (lat < -90 || lat > 90) {
+      throw new ApiError(400, "Latitude must be between -90 and 90");
+    }
+
+    if (!workPreferences || typeof workPreferences !== "object") {
+      throw new ApiError(400, "workPreferences object is required");
+    }
+    if (typeof workPreferences.remoteOnly !== "boolean") {
+      throw new ApiError(400, "workPreferences.remoteOnly must be boolean");
+    }
+    if (typeof workPreferences.willingToTravel !== "boolean") {
+      throw new ApiError(
+        400,
+        "workPreferences.willingToTravel must be boolean"
+      );
+    }
+    if (
+      !isNumberLike(workPreferences.maxTravelDistance) ||
+      toNumber(workPreferences.maxTravelDistance) < 0
+    ) {
+      throw new ApiError(
+        400,
+        "workPreferences.maxTravelDistance must be a non-negative number"
+      );
+    }
+
+    const userId = Types.ObjectId.isValid(user._id)
+      ? new Types.ObjectId(user._id)
+      : user._id;
+
+    const payload: Partial<IFreelancerProfile> = {
+      userId,
+      title: (title as string).trim(),
+      bio: (bio as string).trim(),
+      skills: (skills as string[]).map((s) => s.trim()),
+      hourlyRate: hourlyRateNum,
+      availability,
+      languages: (languages as any[]).map((l) => ({
+        language: (l.language as string).trim(),
+        proficiency: l.proficiency,
+      })),
+      workPreferences: {
+        remoteOnly: !!workPreferences.remoteOnly,
+        willingToTravel: !!workPreferences.willingToTravel,
+        maxTravelDistance: toNumber(workPreferences.maxTravelDistance),
+      },
+      location: {
+        type: "Point",
+        coordinates: [lon, lat] as [number, number],
+        address:
+          typeof location.address === "string"
+            ? location.address.trim()
+            : undefined,
+        city:
+          typeof location.city === "string" ? location.city.trim() : undefined,
+        state:
+          typeof location.state === "string"
+            ? location.state.trim()
+            : undefined,
+        country:
+          typeof location.country === "string"
+            ? location.country.trim()
+            : undefined,
+        pincode:
+          typeof location.pincode === "string"
+            ? location.pincode.trim()
+            : undefined,
+      },
+    };
+
+    try {
+      const updatedProfile = await FreelancerProfile.findOneAndUpdate(
+        { userId: userId },
+        { $set: payload },
+        {
+          new: true,
+          upsert: true,
+          runValidators: true,
+          context: "query",
+        }
+      );
+
+      if (!updatedProfile) {
+        throw new ApiError(500, "Failed to create/update freelancer profile");
+      }
+
+      await User.findByIdAndUpdate(user._id, {
+        $set: { isProfileComplete: true },
+      });
+
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            { profile: updatedProfile },
+            "Freelancer profile completed successfully"
+          )
+        );
+    } catch (err: any) {
+      if (err instanceof mongoose.Error.ValidationError) {
+        const messages = Object.values(err.errors).map((e: any) => e.message);
+        throw new ApiError(400, `Validation failed: ${messages.join(", ")}`);
+      }
+      throw err;
+    }
+  }
+);
+
+export {
+  getUserProfile,
+  updateUserProfile,
+  completeClientProfile,
+  completeFreelancerProfile,
+};

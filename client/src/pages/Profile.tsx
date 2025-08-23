@@ -6,7 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getProfile } from "@/services/profile.service";
 import CompleteProfile from "@/pages/CompleteProfile";
 import NotFound from "./NotFound";
-import { Loader2 } from "lucide-react";
+import { Loader } from "lucide-react";
+import { useEffect } from "react";
 
 const Profile = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,8 +25,14 @@ const Profile = () => {
     refetchOnReconnect: false,
   });
 
-  if (!id || id === user?._id && !isProfileComplete) {
-    return <CompleteProfile />
+  useEffect(() => {
+    if (data) {
+      console.log("Profile data:", data);
+    }
+  }, [data]);
+
+  if (!id || (id === user?._id && !isProfileComplete)) {
+    return <CompleteProfile />;
   }
 
   if (!profileId) {
@@ -35,7 +42,7 @@ const Profile = () => {
   if (isPending) {
     return (
       <div className="flex items-center justify-center min-h-svh">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <Loader className="h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -48,7 +55,11 @@ const Profile = () => {
 
   return (
     <div className="min-h-svh bg-background">
-      {profileRole === "client" ? <ClientProfile profile={data.profile} /> : <FreelancerProfile profile={data.profile} />}
+      {profileRole === "client" ? (
+        <ClientProfile profile={data.profile} />
+      ) : (
+        <FreelancerProfile profile={data.profile} />
+      )}
     </div>
   );
 };

@@ -9,9 +9,9 @@ const app: Application = express();
 
 // Handle CORS
 const allowedOrigins: (string | undefined)[] = [
-  process.env.CORS_ORIGIN_LOCAL, // Localhost (for development)
-  process.env.CORS_ORIGIN_PROD, // Vercel frontend (for production)
-];
+  process.env.CORS_ORIGIN_LOCAL,
+  process.env.CORS_ORIGIN_PROD,
+].filter(Boolean) as string[];
 
 const corsOptions: CorsOptions = {
   origin: (origin: string | undefined, callback) => {

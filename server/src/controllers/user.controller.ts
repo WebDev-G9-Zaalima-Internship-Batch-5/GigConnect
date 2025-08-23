@@ -121,11 +121,13 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
 const verifyUser = asyncHandler(async (req: Request, res: Response) => {
   const { token } = req.query;
 
-  if (!token || typeof token !== "string") {
-    const corsOrigin =
+  const corsOrigin =
       process.env.NODE_ENV === "development"
         ? process.env.CORS_ORIGIN_LOCAL
         : process.env.CORS_ORIGIN_PROD;
+
+  if (!token || typeof token !== "string") {
+    
     return res.redirect(
       `${corsOrigin}/verification-failed?error=invalid_token`
     );
@@ -160,11 +162,6 @@ const verifyUser = asyncHandler(async (req: Request, res: Response) => {
   if (!savedUser) {
     throw new ApiError(500, "Failed to verify user.");
   }
-
-  const corsOrigin =
-    process.env.NODE_ENV === "development"
-      ? process.env.CORS_ORIGIN_LOCAL
-      : process.env.CORS_ORIGIN_PROD;
 
   if (alreadyLoggedIn) {
     return res.redirect(`${corsOrigin}/dashboard`);
@@ -376,10 +373,15 @@ const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
       );
   }
 
+  const corsOrigin =
+    process.env.NODE_ENV === "development"
+      ? process.env.CORS_ORIGIN_LOCAL
+      : process.env.CORS_ORIGIN_PROD;
+
   const resetToken = user.generatePasswordResetToken();
   await user.save({ validateBeforeSave: false });
 
-  const resetUrl = `${process.env.CORS_ORIGIN_LOCAL}/reset-password?token=${resetToken}&email=${user.email}`;
+  const resetUrl = `${corsOrigin}/reset-password?token=${resetToken}&email=${user.email}`;
 
   try {
     await sendPasswordResetEmail(user.email, resetUrl);

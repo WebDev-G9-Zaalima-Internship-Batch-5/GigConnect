@@ -1,38 +1,65 @@
 import { useParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import ClientProfile from "./ClientProfile";
-import FreelancerProfile from "./FreelancerProfile";
+import ClientProfile from "@/pages/ClientProfile";
+import FreelancerProfile from "@/pages/FreelancerProfile";
+import { useQuery } from "@tanstack/react-query";
+import { getProfile } from "@/services/profile.service";
+import CompleteProfile from "@/pages/CompleteProfile";
+import NotFound from "./NotFound";
+import { Loader } from "lucide-react";
 import { useEffect } from "react";
 
 const Profile = () => {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, isProfileComplete } = useAuth();
 
   const profileId = id || user?._id;
 
+  const { data, isPending } = useQuery({
+    queryKey: ["profile", profileId],
+    queryFn: () => getProfile(profileId),
+    enabled: !!profileId,
+    staleTime: 1000 * 60 * 60 * 24,
+    gcTime: 1000 * 60 * 60 * 24,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  useEffect(() => {
+    if (data) {
+      console.log("Profile data:", data);
+    }
+  }, [data]);
+
+  if (!id || (id === user?._id && !isProfileComplete)) {
+    return <CompleteProfile />;
+  }
+
   if (!profileId) {
+    return <NotFound />;
+  }
+
+  if (isPending) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Profile Not Found</h1>
-          <p>Please log in or provide a valid profile ID.</p>
-        </div>
+      <div className="flex items-center justify-center min-h-svh">
+        <Loader className="h-8 w-8 animate-spin" />
       </div>
     );
   }
 
-  const isCurrentUser = profileId === user?._id;
-  const profileRole = isCurrentUser ? user?.role : "freelancer";
+  if (!data) {
+    return <NotFound />;
+  }
 
-  useEffect(() => {
-    if (!isCurrentUser && profileId) {
-      console.log("Fetching profile data for user:", profileId);
-    }
-  }, [profileId, isCurrentUser]);
+  const profileRole = data.profile?.role;
 
   return (
-    <div className="min-h-screen bg-background">
-      {profileRole === "client" ? <ClientProfile /> : <FreelancerProfile />}
+    <div className="min-h-svh bg-background">
+      {profileRole === "client" ? (
+        <ClientProfile profile={data.profile} />
+      ) : (
+        <FreelancerProfile profile={data.profile} />
+      )}
     </div>
   );
 };

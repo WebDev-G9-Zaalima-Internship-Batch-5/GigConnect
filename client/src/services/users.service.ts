@@ -1,38 +1,10 @@
 // users.service.ts
 import { axiosInstance } from "../utils/axios.util";
-
-export interface RegisterPayload {
-  email: string;
-  password: string;
-  role: "client" | "freelancer" | "admin";
-  fullName: string;
-}
-
-export interface LoginPayload {
-  email: string;
-  password: string;
-}
-
-export interface User {
-  _id: string;
-  email: string;
-  role: string;
-  fullName: string;
-  isVerified: boolean;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  lastLogin?: string;
-  avatar?: string;
-  phone?: string;
-}
-
-export interface ResetPasswordPayload {
-  token: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-}
+import {
+  RegisterPayload,
+  LoginPayload,
+  ResetPasswordPayload,
+} from "../types/user.types";
 
 export const registerUser = async (data: RegisterPayload) => {
   const res = await axiosInstance.post("/users/register", data);

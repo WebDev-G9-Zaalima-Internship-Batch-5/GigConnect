@@ -19,20 +19,6 @@ export interface IUser extends Document {
   fullName: string;
   phone?: string;
   avatar?: string;
-  location: {
-    type: {
-      type: String;
-      enum: ["Point"];
-    };
-    coordinates: {
-      type: [Number]; // [longitude, latitude]
-    };
-    address: { type: String; trim: true };
-    city: { type: String; trim: true };
-    state: { type: String; trim: true };
-    country: { type: String; trim: true };
-    pincode: { type: String; trim: true };
-  };
   refreshTokens: {
     token: string;
     createdAt: Date;
@@ -85,20 +71,6 @@ const UserSchema = new Schema<IUser>(
       type: String,
       trim: true,
     },
-    location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-      },
-      coordinates: {
-        type: [Number], // [longitude, latitude]
-      },
-      address: { type: String, trim: true },
-      city: { type: String, trim: true },
-      state: { type: String, trim: true },
-      country: { type: String, trim: true },
-      pincode: { type: String, trim: true },
-    },
     refreshTokens: [
       {
         token: { type: String, required: true },
@@ -143,10 +115,9 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
-// Create geospatial index for location-based queries
-UserSchema.index({ location: "2dsphere" });
 UserSchema.index({ role: 1 });
-UserSchema.index({ role: 1, location: "2dsphere" });
+UserSchema.index({ isVerified: 1 });
+UserSchema.index({ isActive: 1 });
 
 UserSchema.pre<IUser>("save", async function (next) {
   if (!this.isModified("password")) {

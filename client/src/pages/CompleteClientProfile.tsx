@@ -1,9 +1,9 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -29,10 +29,26 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { Building2, DollarSign, Globe, Info, Mail, Phone } from "lucide-react";
+import {
+  Building2,
+  DollarSign,
+  Globe,
+  Mail,
+  MapPin,
+  Loader,
+} from "lucide-react";
+import {
+  clientProfileSchema,
+  CompleteClientProfileFormValues,
+} from "@/schemas/profile.schema";
+import { LocationData } from "@/types/location";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { completeClientProfile } from "@/services/profile.service";
+import { toast } from "sonner";
+import LocationPicker from "../components/LocationPicker";
 
 const businessTypes = [
   { value: "individual", label: "Individual" },
@@ -53,48 +69,42 @@ const industryTypes = [
   "Other",
 ];
 
-const currencies = ["USD", "EUR", "GBP", "INR", "CAD", "AUD"];
+const currencies = ["INR", "USD", "EUR", "GBP", "CAD", "AUD"];
 
-const formSchema = z.object({
-  companyName: z.string().min(2, {
-    message: "Company name must be at least 2 characters.",
-  }),
-  companyWebsite: z.string().url({
-    message: "Please enter a valid URL.",
-  }).optional(),
-  businessType: z.enum([
-    "individual",
-    "startup",
-    "small_business",
-    "enterprise",
-  ]),
-  industryType: z.string().min(1, {
-    message: "Please select an industry type.",
-  }),
-  description: z.string().min(50, {
-    message: "Description must be at least 50 characters.",
-  }),
-  preferredBudgetRange: z.object({
-    min: z.number().min(0, "Minimum budget must be 0 or more"),
-    max: z.number().min(0, "Maximum budget must be 0 or more"),
-    currency: z.string(),
-  }),
-  communicationPreferences: z.object({
-    emailNotifications: z.boolean(),
-    smsNotifications: z.boolean(),
-    projectUpdates: z.boolean(),
-    promotionalEmails: z.boolean(),
-  }),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+const formSchema = clientProfileSchema;
 
 const CompleteClientProfile = () => {
-  const { user } = useAuth();
+  const { user, isProfileComplete } = useAuth();
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
 
-  const form = useForm<FormValues>({
+  useEffect(() => {
+    if (isProfileComplete) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isProfileComplete, navigate]);
+
+  const [location, setLocation] = useState<LocationData | null>(null);
+  const [mapError, setMapError] = useState(false);
+  const locationPickerRef = useRef<HTMLDivElement>(null);
+
+  const completeClientProfileMutation = useMutation({
+    mutationFn: completeClientProfile,
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
+      toast.success("Profile completed successfully!");
+    },
+    onError: (err: any) => {
+      const message =
+        err?.response?.data?.message ??
+        err?.message ??
+        "Failed to save profile.";
+      toast.error(message);
+    },
+  });
+
+  const form = useForm<CompleteClientProfileFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       companyName: "",
@@ -105,7 +115,7 @@ const CompleteClientProfile = () => {
       preferredBudgetRange: {
         min: 100,
         max: 1000,
-        currency: "USD",
+        currency: "INR",
       },
       communicationPreferences: {
         emailNotifications: true,
@@ -116,20 +126,57 @@ const CompleteClientProfile = () => {
     },
   });
 
-  const onSubmit = async (data: FormValues) => {
-    try {
-      setIsSubmitting(true);
-      // TODO: Call API to save client profile
-      console.log("Submitting client profile:", data);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      navigate("/dashboard");
-    } catch (error) {
-      console.error("Error saving profile:", error);
-    } finally {
-      setIsSubmitting(false);
+  const handleLocationChange = useCallback(
+    (loc: LocationData) => {
+      setLocation(loc);
+      if (form.formState.errors.root) {
+        form.clearErrors("root");
+      }
+    },
+    [form]
+  );
+
+  const handleLocationError = useCallback(() => {
+    setMapError(true);
+  }, []);
+
+  const onSubmit = async (data: CompleteClientProfileFormValues) => {
+    if (!location) {
+      form.setError("root", {
+        message: "Please select your business location on the map",
+      });
+      locationPickerRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      return;
     }
+
+    const profileData: CompleteClientProfileFormValues & {
+      location: LocationData;
+    } = {
+      ...data,
+      location: {
+        type: "Point",
+        coordinates: location.coordinates,
+        address: location.address,
+        city: location.city,
+        state: location.state,
+        country: location.country,
+        pincode: location.pincode,
+      },
+    };
+
+    completeClientProfileMutation.mutate(profileData);
   };
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
@@ -160,7 +207,7 @@ const CompleteClientProfile = () => {
                     name="companyName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Company Name</FormLabel>
+                        <FormLabel>Company Name *</FormLabel>
                         <FormControl>
                           <Input placeholder="Your company name" {...field} />
                         </FormControl>
@@ -174,21 +221,70 @@ const CompleteClientProfile = () => {
                     name="companyWebsite"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Company Website</FormLabel>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                            <Globe className="h-4 w-4 text-muted-foreground" />
-                          </div>
+                        <FormLabel className="flex items-center gap-2">
+                          <Globe className="h-4 w-4" />
+                          Company Website (Optional)
+                        </FormLabel>
+                        <FormControl>
                           <Input
                             placeholder="https://example.com"
-                            className="pl-10"
+                            type="url"
                             {...field}
                           />
-                        </div>
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
+                  {/* Location Picker */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Business Location *
+                    </Label>
+                    <div
+                      className="h-64 w-full rounded-md border overflow-hidden"
+                      ref={locationPickerRef}
+                    >
+                      {!mapError ? (
+                        <LocationPicker
+                          onChange={handleLocationChange}
+                          onError={handleLocationError}
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full bg-muted">
+                          <div className="text-center">
+                            <p className="text-muted-foreground mb-2">
+                              Map temporarily unavailable
+                            </p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setMapError(false)}
+                            >
+                              Try Again
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {form.formState.errors.root && (
+                      <p className="text-sm text-destructive">
+                        {form.formState.errors.root.message}
+                      </p>
+                    )}
+                    {location && (
+                      <p className="text-sm text-muted-foreground">
+                        📍{" "}
+                        {location.address ||
+                          (location.city && location.state
+                            ? `${location.city}, ${location.state}`
+                            : location.displayName)}
+                      </p>
+                    )}
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
@@ -196,10 +292,10 @@ const CompleteClientProfile = () => {
                       name="businessType"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Business Type</FormLabel>
+                          <FormLabel>Business Type *</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -224,10 +320,10 @@ const CompleteClientProfile = () => {
                       name="industryType"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Industry</FormLabel>
+                          <FormLabel>Industry *</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -253,11 +349,11 @@ const CompleteClientProfile = () => {
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>About Your Business</FormLabel>
+                        <FormLabel>About Your Business *</FormLabel>
                         <FormControl>
                           <Textarea
                             placeholder="Tell us about your business, projects, and what you're looking for..."
-                            className="min-h-[120px]"
+                            className="min-h-[120px] resize-none"
                             {...field}
                           />
                         </FormControl>
@@ -284,22 +380,25 @@ const CompleteClientProfile = () => {
                       name="preferredBudgetRange.min"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Minimum Budget</FormLabel>
+                          <FormLabel>Minimum Budget *</FormLabel>
                           <FormControl>
-                            <div className="relative">
-                              <span className="absolute left-3 top-2 text-muted-foreground">
-                                $
-                              </span>
-                              <Input
-                                type="number"
-                                min="0"
-                                className="pl-7"
-                                {...field}
-                                onChange={(e) =>
-                                  field.onChange(Number(e.target.value))
-                                }
-                              />
-                            </div>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="100"
+                              value={field.value || ""}
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value
+                                    ? Number(e.target.value)
+                                    : undefined
+                                )
+                              }
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -311,22 +410,25 @@ const CompleteClientProfile = () => {
                       name="preferredBudgetRange.max"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Maximum Budget</FormLabel>
+                          <FormLabel>Maximum Budget *</FormLabel>
                           <FormControl>
-                            <div className="relative">
-                              <span className="absolute left-3 top-2 text-muted-foreground">
-                                $
-                              </span>
-                              <Input
-                                type="number"
-                                min="0"
-                                className="pl-7"
-                                {...field}
-                                onChange={(e) =>
-                                  field.onChange(Number(e.target.value))
-                                }
-                              />
-                            </div>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="1000"
+                              value={field.value || ""}
+                              onChange={(e) =>
+                                field.onChange(
+                                  e.target.value
+                                    ? Number(e.target.value)
+                                    : undefined
+                                )
+                              }
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -338,10 +440,10 @@ const CompleteClientProfile = () => {
                       name="preferredBudgetRange.currency"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Currency</FormLabel>
+                          <FormLabel>Currency *</FormLabel>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -370,7 +472,7 @@ const CompleteClientProfile = () => {
                     Communication Preferences
                   </h3>
 
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="communicationPreferences.emailNotifications"
@@ -380,8 +482,8 @@ const CompleteClientProfile = () => {
                             <FormLabel className="text-base">
                               Email Notifications
                             </FormLabel>
-                            <FormDescription>
-                              Receive important account notifications via email
+                            <FormDescription className="text-sm">
+                              Receive important account notifications
                             </FormDescription>
                           </div>
                           <FormControl>
@@ -403,7 +505,7 @@ const CompleteClientProfile = () => {
                             <FormLabel className="text-base">
                               SMS Notifications
                             </FormLabel>
-                            <FormDescription>
+                            <FormDescription className="text-sm">
                               Receive important notifications via SMS
                             </FormDescription>
                           </div>
@@ -426,7 +528,7 @@ const CompleteClientProfile = () => {
                             <FormLabel className="text-base">
                               Project Updates
                             </FormLabel>
-                            <FormDescription>
+                            <FormDescription className="text-sm">
                               Get updates about your active projects
                             </FormDescription>
                           </div>
@@ -449,7 +551,7 @@ const CompleteClientProfile = () => {
                             <FormLabel className="text-base">
                               Promotional Emails
                             </FormLabel>
-                            <FormDescription>
+                            <FormDescription className="text-sm">
                               Receive newsletters and promotional offers
                             </FormDescription>
                           </div>
@@ -465,9 +567,20 @@ const CompleteClientProfile = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-end space-x-4 pt-4">
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? "Saving..." : "Complete Profile"}
+                <div className="flex justify-end space-x-4 pt-4 border-t">
+                  <Button
+                    type="submit"
+                    disabled={completeClientProfileMutation.isPending}
+                    className="min-w-[120px]"
+                  >
+                    {completeClientProfileMutation.isPending ? (
+                      <>
+                        <Loader className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Complete Profile"
+                    )}
                   </Button>
                 </div>
               </form>

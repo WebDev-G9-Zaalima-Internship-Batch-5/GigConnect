@@ -8,6 +8,15 @@ export interface IFreelancerProfile extends Document {
   skills: string[];
   hourlyRate: number;
   availability: "available" | "busy" | "not_available";
+  location?: {
+    type: "Point";
+    coordinates: [number, number]; // [longitude, latitude]
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    pincode?: string;
+  };
   portfolio: {
     title: string;
     description: string;
@@ -46,18 +55,16 @@ export interface IFreelancerProfile extends Document {
   rating: number;
   totalReviews: number;
   completedGigs: number;
+  totalGigs: number;
   totalEarnings: number;
   successRate: number;
   responseTime: number; // in hours
   profileViews: number;
   isTopRated: boolean;
-  specializationAreas: string[];
   workPreferences: {
     remoteOnly: boolean;
-    willingToTravel: boolean;
-    maxTravelDistance: number; // in km
-    preferredProjectDuration: string[];
-    minimumBudget: number;
+    willingToTravel: boolean; // in km
+    maxTravelDistance: number;
   };
   socialLinks: {
     linkedin?: string;
@@ -66,7 +73,6 @@ export interface IFreelancerProfile extends Document {
     behance?: string;
     dribbble?: string;
   };
-
   createdAt: Date;
   updatedAt: Date;
 }
@@ -103,6 +109,21 @@ const FreelancerProfileSchema = new Schema<IFreelancerProfile>(
       type: String,
       enum: ["available", "busy", "not_available"],
       default: "available",
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        index: "2dsphere",
+      },
+      address: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      country: { type: String, trim: true },
+      pincode: { type: String, trim: true },
     },
     portfolio: [
       {
@@ -167,6 +188,10 @@ const FreelancerProfileSchema = new Schema<IFreelancerProfile>(
       type: Number,
       default: 0,
     },
+    totalGigs: {
+      type: Number,
+      default: 0,
+    },
     totalEarnings: {
       type: Number,
       default: 0,
@@ -190,18 +215,10 @@ const FreelancerProfileSchema = new Schema<IFreelancerProfile>(
       type: Boolean,
       default: false,
     },
-    specializationAreas: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
     workPreferences: {
       remoteOnly: { type: Boolean, default: false },
-      willingToTravel: { type: Boolean, default: false },
-      maxTravelDistance: { type: Number, default: 0 },
-      preferredProjectDuration: [{ type: String }],
-      minimumBudget: { type: Number, default: 0 },
+      willingToTravel: { type: Boolean, default: true },
+      maxTravelDistance: { type: Number, default: 10 },
     },
     socialLinks: {
       linkedin: { type: String },
@@ -216,12 +233,46 @@ const FreelancerProfileSchema = new Schema<IFreelancerProfile>(
   }
 );
 
+// Add other indexes as needed
 FreelancerProfileSchema.index({ skills: 1 });
-FreelancerProfileSchema.index({ rating: -1 });
 FreelancerProfileSchema.index({ hourlyRate: 1 });
-FreelancerProfileSchema.index({ availability: 1 });
-FreelancerProfileSchema.index({ specializationAreas: 1 });
+FreelancerProfileSchema.index({ rating: -1 });
 FreelancerProfileSchema.index({ isTopRated: -1 });
+
+FreelancerProfileSchema.pre("save", function (next) {
+  const languages = this.languages;
+  const skills = this.skills;
+  const uniqueLanguages = [];
+  const languageSet = new Set();
+
+  for (const langObj of languages) {
+    if (!languageSet.has(langObj.language)) {
+      uniqueLanguages.push(langObj);
+      languageSet.add(langObj.language);
+    }
+  }
+
+  this.languages = uniqueLanguages;
+
+  const uniqueSkills = [];
+  const skillSet = new Set();
+
+  for (const skill of skills) {
+    if (!skillSet.has(skill)) {
+      uniqueSkills.push(skill);
+      skillSet.add(skill);
+    }
+  }
+
+  this.skills = uniqueSkills;
+
+  if (this.totalGigs > 0) {
+    this.successRate = (this.completedGigs / this.totalGigs) * 100;
+  } else {
+    this.successRate = 0;
+  }
+  next();
+});
 
 export const FreelancerProfile = model<IFreelancerProfile>(
   "FreelancerProfile",

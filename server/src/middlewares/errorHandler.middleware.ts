@@ -24,9 +24,10 @@ const errorHandler = (
   const statusCode = err.statusCode || 500;
   const message = err.message || "Something went wrong";
 
-  if (process.env.NODE_ENV === "development") {
-    console.error("Error:", err);
-  }
+  // if (process.env.NODE_ENV === "development") {
+  //   console.error("Error:", err);
+  // }
+  console.error("Error:", err);
 
   return res
     .status(statusCode)

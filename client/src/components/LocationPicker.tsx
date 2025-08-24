@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from "react";
 import MapPicker from "./MapPicker";
 import LocationSearchBox from "./LocationSearchBox";
-import { LocationData } from "@/types/location";
+import { LocationData } from "@/types/location.types";
 import { Button } from "@/components/ui/button";
 import { Locate, Loader } from "lucide-react";
 

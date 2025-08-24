@@ -44,7 +44,7 @@ import {
   clientProfileSchema,
   CompleteClientProfileFormValues,
 } from "@/schemas/profile.schema";
-import { LocationData } from "@/types/location";
+import { LocationData } from "@/types/location.types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { completeClientProfile } from "@/services/profile.service";
 import { toast } from "sonner";

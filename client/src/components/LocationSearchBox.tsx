@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { LocationData } from "@/types/location";
+import { LocationData } from "@/types/location.types";
 
 export interface Suggestion {
   display_name: string;

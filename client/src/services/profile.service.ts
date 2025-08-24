@@ -1,7 +1,7 @@
 import { axiosInstance } from "@/utils/axios.util";
 
 import { Profile, UpdateProfileData } from "@/types/profile.types";
-import { LocationData } from "@/types/location";
+import { LocationData } from "@/types/location.types";
 import {
   CompleteClientProfileFormValues,
   CompleteFreelancerProfileFormValues,

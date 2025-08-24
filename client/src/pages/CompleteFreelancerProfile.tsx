@@ -53,7 +53,7 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import LocationPicker from "@/components/LocationPicker";
-import { LocationData } from "@/types/location";
+import { LocationData } from "@/types/location.types";
 import { completeFreelancerProfile } from "@/services/profile.service";
 import { FieldErrors } from "react-hook-form";
 

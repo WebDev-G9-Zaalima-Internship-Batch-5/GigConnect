@@ -19,11 +19,6 @@ import {
   Edit,
   MapPin,
   Calendar,
-  Star,
-  DollarSign,
-  Clock,
-  Award,
-  Eye,
 } from "lucide-react";
 import Navigation from "@/components/Navigation";
 import { getInitials, getLocationName } from "@/utils/helpers.util";

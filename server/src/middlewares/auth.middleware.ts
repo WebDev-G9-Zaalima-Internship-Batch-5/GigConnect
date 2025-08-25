@@ -7,6 +7,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../utils/token.utils.js";
 import crypto from "crypto";
+import { cookieOptions } from "../consts/cookieOptions.const.js";
 
 declare global {
   namespace Express {
@@ -67,7 +68,9 @@ export const verifyJWT = asyncHandler(
 
       const user = await User.findOne({
         "refreshTokens.token": hashedRefreshToken,
-      });
+      }).select(
+        "-password -verificationToken -verificationTokenExpiry -passwordResetToken -passwordResetExpiry"
+      );
 
       if (!user) {
         throw new ApiError(
@@ -76,39 +79,33 @@ export const verifyJWT = asyncHandler(
         );
       }
 
+      const storedToken = user.refreshTokens.find(
+        (rt) => rt.token === hashedRefreshToken
+      );
+
       // Remove the old refresh token
       user.refreshTokens = user.refreshTokens.filter(
         (rt) => rt.token !== hashedRefreshToken
       );
 
-      await user.save({ validateBeforeSave: false });
+      if (!storedToken) {
+        throw new ApiError(401, "Unauthorized: Invalid refresh token.");
+      }
+
+      if (!storedToken.expiresAt || storedToken.expiresAt < new Date()) {
+        await user.save({ validateBeforeSave: false });
+        throw new ApiError(401, "Unauthorized: Refresh token expired.");
+      }
 
       const { accessToken, refreshToken: newRefreshToken } =
         await generateAccessAndRefreshTokens(user, req);
 
-      const cookieOptions = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite:
-          process.env.NODE_ENV === "production"
-            ? ("none" as const)
-            : ("lax" as const),
-      };
+      user.$set("refreshTokens", undefined);
 
       res.cookie("accessToken", accessToken, cookieOptions);
       res.cookie("refreshToken", newRefreshToken, cookieOptions);
 
-      // Attach the user to the request and proceed
-      const {
-        password: _,
-        refreshTokens,
-        verificationToken,
-        verificationTokenExpiry,
-        passwordResetToken,
-        passwordResetExpiry,
-        ...safeUser
-      } = user.toObject();
-      req.user = safeUser;
+      req.user = user;
       return next();
     }
   }
@@ -147,7 +144,7 @@ export const optionalVerifyJWT = asyncHandler(
 );
 
 export const isVerifiedUser = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, _: Response, next: NextFunction) => {
     const user = req.user;
     if (!user || !user.isVerified) {
       throw new ApiError(401, "Unauthorized: User is not verified.");
@@ -157,7 +154,7 @@ export const isVerifiedUser = asyncHandler(
 );
 
 export const isProfileComplete = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, _: Response, next: NextFunction) => {
     const user = req.user;
     if (!user || !user.isProfileComplete) {
       throw new ApiError(401, "Unauthorized: User's profile is not complete.");

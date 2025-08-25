@@ -1,12 +1,9 @@
 import { ApiError } from "../utils/ApiError.js";
-import { IUser, IUserMethods } from "../models/user.model.js";
-import type { HydratedDocument } from "mongoose";
 import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
 import validator from "validator";
-import { UserRole } from "../models/user.model.js";
 import {
   sendPasswordResetEmail,
   sendVerificationEmail,
@@ -15,8 +12,9 @@ import crypto from "crypto";
 import { generateAccessAndRefreshTokens } from "../utils/token.utils.js";
 import { FreelancerProfile } from "../models/freelancerProfile.model.js";
 import { ClientProfile } from "../models/clientProfile.model.js";
-
-type UserDoc = HydratedDocument<IUser, IUserMethods>;
+import { UserDoc, UserRole } from "../types/user.types.js";
+import { cookieOptions } from "../consts/cookieOptions.const.js";
+import { corsOrigin } from "../consts/cors.const.js";
 
 const registerUser = asyncHandler(async (req: Request, res: Response) => {
   interface RegisterBody {
@@ -28,7 +26,6 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
 
   const { email, password, role, fullName }: RegisterBody = req.body;
 
-  // Validate user data.
   const fields = [email, password, role, fullName];
   if (
     fields.some(
@@ -40,6 +37,19 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
 
   if (!validator.isEmail(email)) {
     throw new ApiError(400, "Invalid email format.");
+  }
+
+  if (role !== UserRole.FREELANCER && role !== UserRole.CLIENT) {
+    throw new ApiError(400, "Invalid role.");
+  }
+
+  const passwordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[a-zA-Z\d!@#$%^&*]{8,}$/;
+  if (!passwordRegex.test(password)) {
+    throw new ApiError(
+      400,
+      "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character."
+    );
   }
 
   const emailExists = await User.findOne({ email });
@@ -96,16 +106,6 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     ...safeUser
   } = user.toObject();
 
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite:
-      process.env.NODE_ENV === "production"
-        ? ("none" as const)
-        : ("lax" as const),
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  };
-
   res
     .status(201)
     .cookie("accessToken", accessToken, cookieOptions)
@@ -124,15 +124,8 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
 const verifyUser = asyncHandler(async (req: Request, res: Response) => {
   const { token } = req.query;
 
-  const corsOrigin =
-    process.env.NODE_ENV === "development"
-      ? process.env.CORS_ORIGIN_LOCAL
-      : process.env.CORS_ORIGIN_PROD;
-
   if (!token || typeof token !== "string") {
-    return res.redirect(
-      `${corsOrigin}/verification-failed?error=invalid_token`
-    );
+    return res.redirect(`${corsOrigin}/error?message=invalid_token`);
   }
 
   const hashedToken = crypto
@@ -140,30 +133,30 @@ const verifyUser = asyncHandler(async (req: Request, res: Response) => {
     .update(token.trim())
     .digest("hex");
 
-  const user = await User.findOne({
-    verificationToken: hashedToken,
-    verificationTokenExpiry: { $gt: new Date() },
-  }).select(
-    "-password -verificationToken -verificationTokenExpiry -passwordResetToken -passwordResetExpiry"
+  const user = await User.findOneAndUpdate(
+    {
+      verificationToken: hashedToken,
+      verificationTokenExpiry: { $gt: new Date() },
+      isVerified: false,
+    },
+    {
+      $set: { isVerified: true },
+      $unset: { verificationToken: 1, verificationTokenExpiry: 1 },
+    },
+    {
+      new: true,
+      runValidators: true,
+      select:
+        "-password -refreshTokens -passwordResetToken -passwordResetExpiry",
+    }
   );
 
-  if (!user) {
-    throw new ApiError(404, "User not found.");
-  }
+  if (!user)
+    return res.redirect(
+      `${corsOrigin}/error?message=invalid_or_expired_token_or_already_verified`
+    );
 
-  if (user.isVerified) {
-    throw new ApiError(400, "User already verified.");
-  }
-  const alreadyLoggedIn = req.user?.toString() === user._id.toString();
-
-  user.isVerified = true;
-  user.verificationToken = undefined;
-  user.verificationTokenExpiry = undefined;
-  const savedUser = await user.save({ validateBeforeSave: false });
-
-  if (!savedUser) {
-    throw new ApiError(500, "Failed to verify user.");
-  }
+  const alreadyLoggedIn = req.user?._id?.toString() === user._id.toString();
 
   if (alreadyLoggedIn) {
     return res.redirect(`${corsOrigin}/dashboard`);
@@ -173,16 +166,6 @@ const verifyUser = asyncHandler(async (req: Request, res: Response) => {
     user,
     req
   );
-
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite:
-      process.env.NODE_ENV === "production"
-        ? ("none" as const)
-        : ("lax" as const),
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  };
 
   res
     .cookie("accessToken", accessToken, cookieOptions)
@@ -195,19 +178,11 @@ const resendVerificationEmail = asyncHandler(
     if (!req.user) throw new ApiError(401, "User is not logged in.");
 
     const user = req.user as UserDoc;
-    if (user.isVerified) {
-      throw new ApiError(400, "User already verified.");
-    }
+    if (user.isVerified) throw new ApiError(400, "User already verified.");
 
     const verificationToken = user.generateVerificationToken();
-    const savedUser = await user.save({ validateBeforeSave: false });
 
-    if (!savedUser) {
-      throw new ApiError(
-        500,
-        "Failed to resend verification email. Please try again later."
-      );
-    }
+    await user.save({ validateBeforeSave: false });
 
     const verificationUrl = `${process.env.BACKEND_URL}/api/v1/users/verify-email?token=${verificationToken}`;
 
@@ -249,8 +224,9 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, "Invalid email format.");
   }
 
-  // Find user by email, including the password for verification
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).select(
+    "-verificationToken -verificationTokenExpiry -passwordResetToken -passwordResetExpiry"
+  );
 
   if (!user) {
     throw new ApiError(401, "Invalid email or password.");
@@ -276,25 +252,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     req
   );
 
-  const {
-    password: _,
-    refreshTokens,
-    verificationToken,
-    verificationTokenExpiry,
-    passwordResetToken,
-    passwordResetExpiry,
-    ...safeUser
-  } = user.toObject();
-
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite:
-      process.env.NODE_ENV === "production"
-        ? ("none" as const)
-        : ("lax" as const),
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  };
+  const { password: _, refreshTokens, ...safeUser } = user.toObject();
 
   res
     .status(200)
@@ -314,20 +272,11 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
 const logoutUser = asyncHandler(async (req: Request, res: Response) => {
   const { refreshToken } = req.cookies;
 
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite:
-      process.env.NODE_ENV === "production"
-        ? ("none" as const)
-        : ("lax" as const),
-  };
-
   if (!refreshToken) {
     return res
       .status(200)
       .clearCookie("accessToken", cookieOptions)
-      .json(new ApiResponse(200, null, "User already logged out"));
+      .json(new ApiResponse(200, null, "User logged out successfully"));
   }
 
   const hashedRefreshToken = crypto
@@ -335,16 +284,10 @@ const logoutUser = asyncHandler(async (req: Request, res: Response) => {
     .update(refreshToken)
     .digest("hex");
 
-  const user = await User.findOne({
-    "refreshTokens.token": hashedRefreshToken,
-  });
-
-  if (user) {
-    user.refreshTokens = user.refreshTokens.filter(
-      (rt) => rt.token !== hashedRefreshToken
-    );
-    await user.save({ validateBeforeSave: false });
-  }
+  await User.findOneAndUpdate(
+    { "refreshTokens.token": hashedRefreshToken },
+    { $pull: { refreshTokens: { token: hashedRefreshToken } } }
+  );
 
   res
     .status(200)
@@ -366,11 +309,13 @@ const getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
 const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
 
-  if (!email?.trim()) {
-    throw new ApiError(400, "Email is required.");
+  if (!email?.trim() || !validator.isEmail(email)) {
+    throw new ApiError(400, "Invalid email format.");
   }
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).select(
+    "email passwordResetToken passwordResetExpiry"
+  );
 
   if (!user) {
     return res
@@ -384,15 +329,12 @@ const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
       );
   }
 
-  const corsOrigin =
-    process.env.NODE_ENV === "development"
-      ? process.env.CORS_ORIGIN_LOCAL
-      : process.env.CORS_ORIGIN_PROD;
-
   const resetToken = user.generatePasswordResetToken();
   await user.save({ validateBeforeSave: false });
 
-  const resetUrl = `${corsOrigin}/reset-password?token=${resetToken}&email=${user.email}`;
+  const resetUrl = `${corsOrigin}/reset-password?token=${resetToken}&email=${encodeURIComponent(
+    user.email
+  )}`;
 
   try {
     await sendPasswordResetEmail(user.email, resetUrl);
@@ -429,7 +371,7 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
 
   console.log(req.body);
 
-  if (!password || !token || !email) {
+  if (!password?.trim() || !token?.trim() || !email?.trim()) {
     throw new ApiError(400, "Invalid request.");
   }
 
@@ -449,10 +391,9 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, "Password reset token is invalid or has expired.");
   }
 
-  user.password = password;
-
   user.passwordResetToken = undefined;
   user.passwordResetExpiry = undefined;
+  user.password = password;
 
   const savedUser = await user.save();
 
@@ -474,16 +415,6 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
     passwordResetExpiry,
     ...safeUser
   } = savedUser.toObject();
-
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite:
-      process.env.NODE_ENV === "production"
-        ? ("none" as const)
-        : ("lax" as const),
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  };
 
   res
     .status(200)

@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -9,6 +9,9 @@ import {
 } from "../models/freelancerProfile.model.js";
 import { User } from "../models/user.model.js";
 import mongoose, { isValidObjectId, Types } from "mongoose";
+import { uploadOnCloudinary } from "../services/cloudinary.service.js";
+import { AVATAR_FOLDER_PATH } from "../consts/cloudinary.const.js";
+import { UserDoc } from "../types/user.types.js";
 
 const isNumberLike = (v: any) => {
   if (typeof v === "number") return Number.isFinite(v);
@@ -260,7 +263,7 @@ const completeClientProfile = asyncHandler(
 
 const completeFreelancerProfile = asyncHandler(
   async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const user = req.user;
 
     if (user.isProfileComplete) {
       throw new ApiError(400, "Profile already completed");
@@ -456,9 +459,67 @@ const completeFreelancerProfile = asyncHandler(
   }
 );
 
+const updateAvatar = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw new ApiError(401, "User is not logged in.");
+
+  const user = req.user as UserDoc;
+
+  const avatarLocalPath = req.file?.path;
+
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "Avatar file is missing.");
+  }
+
+  if (req.file?.size && req.file.size > 5 * 1024 * 1024) { // 5MB limit
+    throw new ApiError(400, "Avatar file too large. Max size is 5MB.");
+  }
+
+  if (req.file?.mimetype && !req.file.mimetype.startsWith("image/")) {
+    throw new ApiError(400, "Avatar must be an image file.");
+  }
+
+  const avatarUrl = await uploadOnCloudinary({
+    localFilePath: avatarLocalPath,
+    publicId: `${user._id}avatar`,
+    folderPath: AVATAR_FOLDER_PATH,
+  });
+
+  if (!avatarUrl) {
+    throw new ApiError(500, "Failed to upload avatar.");
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        avatar: {
+          url: avatarUrl.secure_url || avatarUrl.url,
+          publicId: avatarUrl.public_id,
+        },
+      },
+    },
+    { new: true }
+  ).select("avatar");
+
+  if (!updatedUser) {
+    throw new ApiError(404, "User not found.");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { avatar: updatedUser.avatar },
+        "Avatar updated successfully."
+      )
+    );
+});
+
 export {
   getUserProfile,
   updateUserProfile,
   completeClientProfile,
   completeFreelancerProfile,
+  updateAvatar,
 };

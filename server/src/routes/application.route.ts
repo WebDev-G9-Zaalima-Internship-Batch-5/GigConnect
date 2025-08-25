@@ -6,7 +6,7 @@ import {
 } from "../controllers/application.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { checkRole } from "../middlewares/role.middleware.js";
-import { UserRole } from "../models/user.model.js";
+import { UserRole } from "../types/user.types.js";
 
 const router = Router({ mergeParams: true });
 

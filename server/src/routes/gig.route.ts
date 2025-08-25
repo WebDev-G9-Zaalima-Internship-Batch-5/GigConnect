@@ -8,7 +8,7 @@ import {
 } from "../controllers/gig.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { checkRole } from "../middlewares/role.middleware.js";
-import { UserRole } from "../models/user.model.js";
+import { UserRole } from "../types/user.types.js";
 import applicationRouter from "./application.route.js";
 
 const router = Router();

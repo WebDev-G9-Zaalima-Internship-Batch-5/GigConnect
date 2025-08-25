@@ -1,0 +1,1 @@
+export const AVATAR_FOLDER_PATH = "GigConnect/images/user_avatars";

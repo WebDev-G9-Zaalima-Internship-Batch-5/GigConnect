@@ -3,11 +3,12 @@ import {
   completeClientProfile,
   completeFreelancerProfile,
   getUserProfile,
+  updateAvatar,
   updateUserProfile,
 } from "../controllers/profile.controller.js";
-import { isVerifiedUser, verifyJWT } from "../middlewares/auth.middleware.js";
+import { isProfileComplete, isVerifiedUser, verifyJWT } from "../middlewares/auth.middleware.js";
 import { checkRole } from "../middlewares/role.middleware.js";
-import { UserRole } from "../models/user.model.js";
+import { UserRole } from "../types/user.types.js";
 
 const router = Router();
 
@@ -21,6 +22,9 @@ router
 router
   .route("/complete-freelancer-profile")
   .post(verifyJWT, isVerifiedUser, checkRole([UserRole.FREELANCER]), completeFreelancerProfile);
+router
+  .route("/update-avatar")
+  .post(verifyJWT, isVerifiedUser, isProfileComplete, updateAvatar);
 router.route("/:userId").put(verifyJWT, updateUserProfile);
 
 export default router;

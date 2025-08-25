@@ -24,6 +24,7 @@ import ClientSettings from "@/components/ClientSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import ClientStats from "@/components/ClientStats";
 import { ClientAboutData } from "@/types/clientProfile.types";
+import { AvatarUpdateModal } from "@/components/AvatarUpdateModal";
 
 const ClientProfile = ({ profile }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -48,6 +49,15 @@ const ClientProfile = ({ profile }) => {
     },
   ];
 
+  const handleAvatarUpdate = (newAvatarUrl: string) => {
+    if (profile) {
+      // Update the profile avatar
+      // This might involve making an API call or updating the state
+      // For now, just log the new avatar URL
+      console.log("New avatar URL:", newAvatarUrl);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -65,10 +75,12 @@ const ClientProfile = ({ profile }) => {
                     </AvatarFallback>
                   </Avatar>
                   {user && user._id === profile._id && (
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Edit className="h-4 w-4" />
-                      Update Avatar
-                    </Button>
+                    <AvatarUpdateModal onUpdate={handleAvatarUpdate}>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <Edit className="h-4 w-4" />
+                        Update Avatar
+                      </Button>
+                    </AvatarUpdateModal>
                   )}
                 </div>
 

@@ -1,9 +1,6 @@
 import { ApiError } from "./ApiError.js";
-import { IUser, IUserMethods } from "../models/user.model.js";
-import { HydratedDocument } from "mongoose";
 import { Request } from "express";
-
-type UserDoc = HydratedDocument<IUser, IUserMethods>;
+import { UserDoc } from "../types/user.types.js";
 
 export const generateAccessAndRefreshTokens = async (
   user: UserDoc,
@@ -14,7 +11,6 @@ export const generateAccessAndRefreshTokens = async (
     const { raw: rawRefreshToken, hashed: hashedRefreshToken } =
       user.generateRefreshToken();
 
-    // Add the new refresh token to the user's document
     user.refreshTokens.push({
       token: hashedRefreshToken,
       createdAt: new Date(),

@@ -4,38 +4,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import type { Secret, SignOptions } from "jsonwebtoken";
-
-export enum UserRole {
-  CLIENT = "client",
-  FREELANCER = "freelancer",
-  ADMIN = "admin",
-}
-
-export interface IUser extends Document {
-  _id: Types.ObjectId;
-  email: string;
-  password: string;
-  role: UserRole;
-  fullName: string;
-  phone?: string;
-  avatar?: string;
-  refreshTokens: {
-    token: string;
-    createdAt: Date;
-    ip: string;
-    userAgent: string;
-  }[];
-  isVerified: boolean;
-  isProfileComplete: boolean;
-  isActive: boolean;
-  verificationToken?: string;
-  verificationTokenExpiry?: Date;
-  passwordResetToken?: string;
-  passwordResetExpiry?: Date;
-  lastLogin?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { IUser, IUserMethods, UserRole } from "../types/user.types.js";
 
 const UserSchema = new Schema<IUser>(
   {
@@ -75,6 +44,11 @@ const UserSchema = new Schema<IUser>(
       {
         token: { type: String, required: true },
         createdAt: { type: Date, required: true, default: Date.now },
+        expiresAt: {
+          type: Date,
+          required: true,
+          default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
         ip: { type: String },
         userAgent: { type: String },
       },
@@ -127,14 +101,12 @@ UserSchema.pre<IUser>("save", async function (next) {
   next();
 });
 
-// Method to check if the password is correct.
 UserSchema.methods.isPasswordCorrect = async function (
   password: string
 ): Promise<boolean> {
   return await bcrypt.compare(password, this.password);
 };
 
-// Method to generate email verification token
 UserSchema.methods.generateVerificationToken = function (): string {
   const token = crypto.randomBytes(20).toString("hex");
 
@@ -193,14 +165,6 @@ UserSchema.methods.generatePasswordResetToken = function (): string {
 
   return resetToken;
 };
-
-export interface IUserMethods {
-  isPasswordCorrect(password: string): Promise<boolean>;
-  generateAccessToken(): string;
-  generateRefreshToken(): { raw: string; hashed: string };
-  generateVerificationToken(): string;
-  generatePasswordResetToken(): string;
-}
 
 // Combine the schema interface and the methods interface
 export type UserModelType = Model<IUser, {}, IUserMethods>;

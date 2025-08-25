@@ -42,6 +42,11 @@ const uploadOnCloudinary = async ({
   try {
     if (!localFilePath) return null;
 
+    if (!fs.existsSync(localFilePath)) {
+      console.warn(`File does not exist: ${localFilePath}`);
+      return null;
+    }
+
     const options: UploadApiOptions = {
       resource_type: "auto",
       overwrite: true,
@@ -63,7 +68,7 @@ const uploadOnCloudinary = async ({
       fs.unlinkSync(localFilePath);
     }
 
-    return response ? response : null;
+    return response || null;
   } catch (error) {
     console.error("Error uploading to Cloudinary:", error);
     // Remove the locally saved temp file as the upload failed.

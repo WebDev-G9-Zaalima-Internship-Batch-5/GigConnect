@@ -13,7 +13,6 @@ export const generateAccessAndRefreshTokens = async (
 
     user.refreshTokens.push({
       token: hashedRefreshToken,
-      createdAt: new Date(),
       ip: req.ip || "unknown",
       userAgent: req.headers["user-agent"] || "unknown",
     });

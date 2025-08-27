@@ -1,4 +1,4 @@
-import { useState, useRef, ChangeEvent } from "react";
+import { useState, useRef, ChangeEvent, useCallback } from "react";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -25,7 +25,9 @@ export function AvatarUpdateModal({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -57,6 +59,55 @@ export function AvatarUpdateModal({
     setPreviewUrl(URL.createObjectURL(file));
   };
 
+  const handleDragOver = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!isDragging) setIsDragging(true);
+    },
+    [isDragging]
+  );
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+
+      const file = e.dataTransfer.files?.[0];
+      if (!file) return;
+
+      // Reuse the same validation as file input
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload an image file (JPEG, PNG, etc.)",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please upload an image smaller than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    },
+    [toast]
+  );
+
   const handleRemoveImage = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
@@ -65,8 +116,7 @@ export function AvatarUpdateModal({
     }
   };
 
-  const handleSubmit = async () => {
-  };
+  const handleSubmit = async () => {};
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -76,7 +126,17 @@ export function AvatarUpdateModal({
           <DialogTitle>Update Profile Picture</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="flex flex-col items-center space-y-4">
+          <div
+            ref={dropAreaRef}
+            className={`flex flex-col items-center space-y-4 p-4 rounded-lg transition-colors ${
+              isDragging
+                ? "bg-primary/10 border-2 border-dashed border-primary"
+                : ""
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
             {previewUrl ? (
               <div className="relative">
                 <img
@@ -101,7 +161,7 @@ export function AvatarUpdateModal({
               </div>
             )}
 
-            <div className="w-full">
+            <div className="w-full text-center">
               <Label htmlFor="avatar-upload" className="sr-only">
                 Choose profile picture
               </Label>
@@ -113,15 +173,20 @@ export function AvatarUpdateModal({
                 className="hidden"
                 onChange={handleFileChange}
               />
+              <p className="text-sm text-muted-foreground mb-2">
+                {isDragging
+                  ? "Drop the image here"
+                  : "Drag and drop an image here, or click to select"}
+              </p>
               <Button
                 type="button"
                 variant="outline"
                 className="w-full"
                 onClick={() => fileInputRef.current?.click()}
               >
-                {previewUrl ? "Change Image" : "Upload Image"}
+                {previewUrl ? "Change Image" : "Select Image"}
               </Button>
-              <p className="text-xs text-muted-foreground mt-2 text-center">
+              <p className="text-xs text-muted-foreground mt-2">
                 JPG, PNG, or WebP. Max 5MB.
               </p>
             </div>

@@ -16,8 +16,8 @@ export interface IUser extends Document {
   avatar?: string;
   refreshTokens: {
     token: string;
-    createdAt: Date;
-    expiresAt: Date;
+    createdAt?: Date;
+    expiresAt?: Date;
     ip: string;
     userAgent: string;
   }[];
@@ -34,11 +34,11 @@ export interface IUser extends Document {
 }
 
 export interface IUserMethods {
-    isPasswordCorrect(password: string): Promise<boolean>;
-    generateAccessToken(): string;
-    generateRefreshToken(): { raw: string; hashed: string };
-    generateVerificationToken(): string;
-    generatePasswordResetToken(): string;
+  isPasswordCorrect(password: string): Promise<boolean>;
+  generateAccessToken(): string;
+  generateRefreshToken(): { raw: string; hashed: string };
+  generateVerificationToken(): string;
+  generatePasswordResetToken(): string;
 }
 
 export type PublicUser = Omit<
@@ -52,5 +52,3 @@ export type PublicUser = Omit<
 >;
 
 export type UserDoc = HydratedDocument<IUser, IUserMethods>;
-
-

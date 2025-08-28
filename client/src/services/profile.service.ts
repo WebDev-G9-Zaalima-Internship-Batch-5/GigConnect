@@ -39,3 +39,11 @@ export const completeFreelancerProfile = async (
   );
   return res.data.data;
 };
+
+export const uploadAvatar = async (avatarImage: File) => {
+  const formData = new FormData();
+  formData.append("avatar", avatarImage);
+  console.log("formData: ", avatarImage);
+  const res = await axiosInstance.post("/profiles/update-avatar", formData);
+  return res.data.data;
+};

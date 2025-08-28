@@ -20,7 +20,10 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   lastLogin?: string;
-  avatar?: string;
+  avatar?: {
+    url: string;
+    publicId: string;
+  };
   phone?: string;
 }
 

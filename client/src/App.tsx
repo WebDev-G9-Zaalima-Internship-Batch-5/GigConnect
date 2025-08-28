@@ -17,6 +17,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import AuthLayout from "./components/AuthLayout";
 import Dashboard from "./pages/Dashboard";
 import React from "react";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<
@@ -174,6 +175,9 @@ const App = () => {
             <RouterProvider router={router} />
           </TooltipProvider>
         </AuthProvider>
+        {process.env.NODE_ENV === "development" && (
+          <ReactQueryDevtools initialIsOpen={false} />
+        )}
       </QueryClientProvider>
     </ErrorBoundary>
   );

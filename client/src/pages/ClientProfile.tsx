@@ -13,11 +13,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import {
-  formatMongoDate,
-  getInitials,
-  getLocationName,
-} from "@/utils/helpers.util";
+import { formatMongoDate, getInitials } from "@/utils/helpers.util";
 import ClientProjects, { defaultProjects } from "@/components/ClientProjects";
 import ClientAbout from "@/components/ClientAbout";
 import ClientSettings from "@/components/ClientSettings";
@@ -39,24 +35,15 @@ const ClientProfile = ({ profile }) => {
   };
 
   const defaultStats = [
-    { label: "Projects Posted", value: profile.projectsPosted, icon: Users },
-    { label: "Total Spent", value: profile.totalSpent, icon: DollarSign },
-    { label: "Average Rating", value: profile.clientRating, icon: Star },
+    { label: "Projects Posted", value: profile?.projectsPosted, icon: Users },
+    { label: "Total Spent", value: profile?.totalSpent, icon: DollarSign },
+    { label: "Average Rating", value: profile?.clientRating, icon: Star },
     {
       label: "Total Reviews",
-      value: profile.totalReviews,
+      value: profile?.totalReviews,
       icon: MessageSquare,
     },
   ];
-
-  const handleAvatarUpdate = (newAvatarUrl: string) => {
-    if (profile) {
-      // Update the profile avatar
-      // This might involve making an API call or updating the state
-      // For now, just log the new avatar URL
-      console.log("New avatar URL:", newAvatarUrl);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -69,13 +56,16 @@ const ClientProfile = ({ profile }) => {
               <div className="flex flex-col md-nav:flex-row gap-6">
                 <div className="flex flex-col items-center md-nav:items-start justify-between">
                   <Avatar className="w-32 h-32 mb-4">
-                    <AvatarImage src={profile.avatar} alt={profile.fullName} />
+                    <AvatarImage
+                      src={user?.avatar?.url}
+                      alt={profile?.fullName}
+                    />
                     <AvatarFallback className="text-2xl">
-                      {getInitials(profile.fullName || "")}
+                      {getInitials(profile?.fullName || "")}
                     </AvatarFallback>
                   </Avatar>
-                  {user && user._id === profile._id && (
-                    <AvatarUpdateModal onUpdate={handleAvatarUpdate}>
+                  {user && user._id === profile?._id && (
+                    <AvatarUpdateModal>
                       <Button variant="outline" size="sm" className="gap-2">
                         <Edit className="h-4 w-4" />
                         Update Avatar
@@ -88,10 +78,10 @@ const ClientProfile = ({ profile }) => {
                   <div className="flex justify-between items-start pb-4">
                     <div>
                       <h1 className="text-3xl font-bold text-foreground mb-1">
-                        {profile.fullName}
+                        {profile?.fullName}
                       </h1>
                       <p className="text-muted-foreground text-sm">
-                        Last Login: {formatMongoDate(profile.lastLogin)}
+                        Last Login: {formatMongoDate(profile?.lastLogin)}
                       </p>
                     </div>
                     <Button

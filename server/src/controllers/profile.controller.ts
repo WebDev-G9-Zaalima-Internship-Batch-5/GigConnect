@@ -461,7 +461,6 @@ const completeFreelancerProfile = asyncHandler(
 
 const updateAvatar = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, "User is not logged in.");
-
   const user = req.user as UserDoc;
 
   const avatarLocalPath = req.file?.path;

@@ -37,8 +37,8 @@ const UserSchema = new Schema<IUser>(
       trim: true,
     },
     avatar: {
-      type: String,
-      trim: true,
+      url: String,
+      publicId: String,
     },
     refreshTokens: [
       {

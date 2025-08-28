@@ -10,48 +10,37 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Loader2, Upload, X } from "lucide-react";
-import { useToast } from "./ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { uploadAvatar } from "@/services/profile.service";
+import { toast } from "sonner";
 
 interface AvatarUpdateModalProps {
-  onUpdate: (avatarUrl: string) => void;
   children: React.ReactNode;
 }
 
-export function AvatarUpdateModal({
-  onUpdate,
-  children,
-}: AvatarUpdateModalProps) {
+export function AvatarUpdateModal({ children }: AvatarUpdateModalProps) {
   const [open, setOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropAreaRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
 
     if (!file) return;
 
-    // Check file type
     if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload an image file (JPEG, PNG, etc.)",
-        variant: "destructive",
-      });
+      toast.error("Invalid file type. Please upload an image.");
       return;
     }
 
-    // Check file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Please upload an image smaller than 5MB",
-        variant: "destructive",
-      });
+      toast.error("File too large. Please upload an image smaller than 5MB");
       return;
     }
 
@@ -85,20 +74,12 @@ export function AvatarUpdateModal({
 
       // Reuse the same validation as file input
       if (!file.type.startsWith("image/")) {
-        toast({
-          title: "Invalid file type",
-          description: "Please upload an image file (JPEG, PNG, etc.)",
-          variant: "destructive",
-        });
+        toast.error("Invalid file type. Please upload an image.");
         return;
       }
 
       if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: "Please upload an image smaller than 5MB",
-          variant: "destructive",
-        });
+        toast.error("File too large. Please upload an image smaller than 5MB");
         return;
       }
 
@@ -116,7 +97,35 @@ export function AvatarUpdateModal({
     }
   };
 
-  const handleSubmit = async () => {};
+  const {mutate, isPending} = useMutation({
+    mutationFn: () => uploadAvatar(selectedFile),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["currentUser"], (prev: any) => {
+        if (!prev?.user) return prev;
+
+        return {
+          ...prev,
+          user: {
+            ...prev.user,
+            avatar: data.avatar,
+          },
+        };
+      });
+
+      toast.success("Avatar uploaded successfully");
+      setOpen(false);
+      handleRemoveImage();
+    },
+    onError: (e) => {
+      console.log(e);
+      toast.error("Failed to upload avatar");
+    },
+  });
+
+  const handleSubmit = async () => {
+    if (!selectedFile) return;
+    mutate();
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -200,16 +209,16 @@ export function AvatarUpdateModal({
               setOpen(false);
               handleRemoveImage();
             }}
-            disabled={isUploading}
+            disabled={isPending}
           >
             Cancel
           </Button>
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={!selectedFile || isUploading}
+            disabled={!selectedFile || isPending}
           >
-            {isUploading ? (
+            {isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Uploading...

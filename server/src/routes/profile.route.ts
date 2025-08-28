@@ -9,6 +9,7 @@ import {
 import { isProfileComplete, isVerifiedUser, verifyJWT } from "../middlewares/auth.middleware.js";
 import { checkRole } from "../middlewares/role.middleware.js";
 import { UserRole } from "../types/user.types.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
@@ -24,7 +25,8 @@ router
   .post(verifyJWT, isVerifiedUser, checkRole([UserRole.FREELANCER]), completeFreelancerProfile);
 router
   .route("/update-avatar")
-  .post(verifyJWT, isVerifiedUser, isProfileComplete, updateAvatar);
+  .post(verifyJWT, isVerifiedUser, isProfileComplete,
+    upload.single("avatar"), updateAvatar);
 router.route("/:userId").put(verifyJWT, updateUserProfile);
 
 export default router;

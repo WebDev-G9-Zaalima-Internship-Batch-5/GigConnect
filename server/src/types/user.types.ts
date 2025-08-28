@@ -13,7 +13,10 @@ export interface IUser extends Document {
   role: UserRole;
   fullName: string;
   phone?: string;
-  avatar?: string;
+  avatar?: {
+    url: string;
+    publicId: string;
+  };
   refreshTokens: {
     token: string;
     createdAt?: Date;

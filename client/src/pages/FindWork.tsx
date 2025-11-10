@@ -45,7 +45,6 @@ const FindWork = () => {
   const { user, isAuthenticated, appLoading } = useAuth();
 
   // Load user's stored profile location (if logged in)
-  console.log("user", user);
   const { data: profileData } = useQuery({
     queryKey: ["profile", user?._id],
     queryFn: () => getProfile(user?._id),

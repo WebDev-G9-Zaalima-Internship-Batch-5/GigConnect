@@ -53,13 +53,17 @@ const formatPostedTime = (date: string | Date | undefined) => {
 const GigDetails = () => {
   const { gigId } = useParams<{ gigId: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const { data: gig, isPending } = useQuery({
     queryKey: ["gig", gigId],
     queryFn: () => getGigById(gigId as string),
     enabled: !!gigId,
     staleTime: 1000 * 60 * 5,
+    select: (data) => ({
+      ...data,
+      isClient: user?._id === data.clientId?._id,
+    }),
   });
 
   const [coverLetter, setCoverLetter] = useState("");
@@ -326,68 +330,119 @@ const GigDetails = () => {
             <div className="space-y-6">
               <Card className="shadow-card">
                 <CardHeader>
-                  <CardTitle>Submit a Proposal</CardTitle>
+                  <CardTitle>{gig.isClient ? 'Gig Management' : 'Submit a Proposal'}</CardTitle>
                   <CardDescription>
-                    {isAuthenticated ? (gig.status === 'OPEN' ? "Introduce yourself and share your approach" : `Applications are closed (${gig.status})`) : "Login as a freelancer to apply"}
+                    {gig.isClient 
+                      ? (gig.contractId 
+                          ? `Contract is ${gig.contractStatus || 'active'}` 
+                          : 'Manage applications for this gig')
+                      : isAuthenticated 
+                        ? (gig.status === 'OPEN' 
+                            ? "Introduce yourself and share your approach" 
+                            : `Applications are closed (${gig.status})`)
+                        : "Login as a freelancer to apply"}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <form onSubmit={onSubmit} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Cover Letter</label>
-                      <Textarea
-                        placeholder="Write a concise cover letter"
-                        value={coverLetter}
-                        onChange={(e) => setCoverLetter(e.target.value)}
-                        className="min-h-[120px]"
-                        disabled={!isAuthenticated || applyMutation.isPending}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Relevant Experience</label>
-                      <Textarea
-                        placeholder="Summarize your directly relevant experience (max 500 chars)"
-                        value={relevantExperience}
-                        onChange={(e) => setRelevantExperience(e.target.value)}
-                        className="min-h-[100px]"
-                        disabled={!isAuthenticated || applyMutation.isPending}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Proposed Rate</label>
-                      <Input
-                        type="number"
-                        placeholder={gig?.budget?.type === "hourly" ? "e.g., 40 (per hour)" : "e.g., 2000 (fixed)"}
-                        value={proposedRate}
-                        onChange={(e) => setProposedRate(e.target.value)}
-                        disabled={!isAuthenticated || applyMutation.isPending}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Estimated Duration</label>
-                      <Input
-                        placeholder="e.g., 2 weeks"
-                        value={estimatedDuration}
-                        onChange={(e) => setEstimatedDuration(e.target.value)}
-                        disabled={!isAuthenticated || applyMutation.isPending}
-                      />
-                    </div>
-                    <Button 
-                      type="submit" 
-                      className="w-full" 
-                      disabled={!isAuthenticated || applyMutation.isPending || !gig || gig.status?.toUpperCase() !== 'OPEN'}
-                    >
-                      {applyMutation.isPending 
-                        ? "Submitting..." 
-                        : (!isAuthenticated 
-                            ? "Login to Apply"
-                            : !gig 
-                              ? "Loading..."
-                              : gig.status?.toUpperCase() !== 'OPEN'
-                                ? `Applications ${gig.status?.toLowerCase()}`
-                                : "Submit Proposal")}
-                    </Button>
-                  </form>
+                <CardContent className="space-y-4">
+                  {gig.isClient ? (
+                    gig.contractId ? (
+                      // Show contract status if contract exists
+                      <div className="text-center p-4 bg-muted/50 rounded-md">
+                        <div className="flex items-center justify-center mb-2">
+                          <Layers className="h-6 w-6 text-primary mr-2" />
+                          <h3 className="text-lg font-semibold">Contract Active</h3>
+                        </div>
+                        <p className="text-muted-foreground text-sm mb-4">
+                          You have an active contract for this gig.
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          className="w-full"
+                          onClick={() => navigate(`/contracts/${gig.contractId}`)}
+                        >
+                          View Contract
+                        </Button>
+                      </div>
+                    ) : (
+                      // Show View Applications button if no contract
+                      <div className="text-center p-4">
+                        <div className="flex items-center justify-center mb-2">
+                          <FileText className="h-6 w-6 text-primary mr-2" />
+                          <h3 className="text-lg font-semibold">View Applications</h3>
+                        </div>
+                        <p className="text-muted-foreground text-sm mb-4">
+                          {gig.applicationCount > 0 
+                            ? `You have ${gig.applicationCount} application${gig.applicationCount === 1 ? '' : 's'} to review.`
+                            : 'No applications received yet.'}
+                        </p>
+                        <Button 
+                          className="w-full" 
+                          onClick={() => navigate(`/client/gigs/${gig._id}/applications`)}
+                          disabled={gig.applicationCount === 0}
+                        >
+                          {gig.applicationCount > 0 ? 'Review Applications' : 'No Applications Yet'}
+                        </Button>
+                      </div>
+                    )
+                  ) : (
+                    // Show proposal form for non-client users
+                    <form onSubmit={onSubmit} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Cover Letter</label>
+                        <Textarea
+                          placeholder="Write a concise cover letter"
+                          value={coverLetter}
+                          onChange={(e) => setCoverLetter(e.target.value)}
+                          className="min-h-[120px]"
+                          disabled={!isAuthenticated || applyMutation.isPending}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Relevant Experience</label>
+                        <Textarea
+                          placeholder="Summarize your directly relevant experience (max 500 chars)"
+                          value={relevantExperience}
+                          onChange={(e) => setRelevantExperience(e.target.value)}
+                          className="min-h-[100px]"
+                          disabled={!isAuthenticated || applyMutation.isPending}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Proposed Rate</label>
+                        <Input
+                          type="number"
+                          placeholder={gig?.budget?.type === "hourly" ? "e.g., 40 (per hour)" : "e.g., 2000 (fixed)"}
+                          value={proposedRate}
+                          onChange={(e) => setProposedRate(e.target.value)}
+                          disabled={!isAuthenticated || applyMutation.isPending}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Estimated Duration</label>
+                        <Input
+                          placeholder="e.g., 2 weeks"
+                          value={estimatedDuration}
+                          onChange={(e) => setEstimatedDuration(e.target.value)}
+                          disabled={!isAuthenticated || applyMutation.isPending}
+                        />
+                      </div>
+                      <Button 
+                        type="submit" 
+                        className="w-full" 
+                        disabled={!isAuthenticated || applyMutation.isPending || !gig || gig.status?.toUpperCase() !== 'OPEN'}
+                      >
+                        {applyMutation.isPending 
+                          ? "Submitting..." 
+                          : (!isAuthenticated 
+                              ? "Login to Apply"
+                              : !gig 
+                                ? "Loading..."
+                                : gig.status?.toUpperCase() !== 'OPEN'
+                                  ? `Applications ${gig.status?.toLowerCase()}`
+                                  : "Submit Proposal")}
+                      </Button>
+                    </form>
+                  )}
                 </CardContent>
               </Card>
             </div>

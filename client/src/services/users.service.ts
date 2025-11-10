@@ -23,19 +23,16 @@ export const logoutUser = async () => {
 
 export const getCurrentUser = async () => {
   const res = await axiosInstance.get("/users/get-current-user");
-  console.log("getCurrentUser: ", res.data.data);
   return res.data.data;
 };
 
 export const resendVerificationEmail = async () => {
   const res = await axiosInstance.post("/users/resend-verification-email");
-  console.log("resendVerificationEmail: ", res.data.data);
   return res.data.data;
 };
 
 export const forgotPassword = async (email: string) => {
   const res = await axiosInstance.post("/users/forgot-password", { email });
-  console.log("forgotPassword: ", res.data);
   return res.data.data;
 };
 
@@ -43,6 +40,5 @@ export const resetPassword = async (
   data: Omit<ResetPasswordPayload, "confirmPassword">
 ) => {
   const res = await axiosInstance.post("/users/reset-password", data);
-  console.log("resetPassword: ", res.data);
   return res.data.data;
 };

@@ -27,7 +27,6 @@ const Profile = () => {
 
   useEffect(() => {
     if (data) {
-      console.log("Profile data:", data);
     }
   }, [data]);
 

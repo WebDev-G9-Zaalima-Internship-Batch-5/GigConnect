@@ -16,6 +16,10 @@ import CompleteProfile from "./pages/CompleteProfile";
 import { AuthProvider } from "./contexts/AuthContext";
 import AuthLayout from "./components/AuthLayout";
 import Dashboard from "./pages/Dashboard";
+import ClientGigApplications from "./pages/ClientGigApplications";
+import ClientApplicationDetail from "./pages/ClientApplicationDetail";
+import ClientContractBuilder from "./pages/ClientContractBuilder";
+import FreelancerContractReview from "./pages/FreelancerContractReview";
 import React from "react";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
@@ -148,6 +152,51 @@ const App = () => {
           <Dashboard />
         </AuthLayout>
       ),
+    },
+    {
+      path: "/client/gigs/:gigId/applications",
+      element: (
+        <AuthLayout authentication={true}>
+          <ClientGigApplications />
+        </AuthLayout>
+      ),
+      errorElement: <RouterErrorElement />,
+    },
+    {
+      path: "/client/gigs/:gigId/applications/:applicationId",
+      element: (
+        <AuthLayout authentication={true}>
+          <ClientApplicationDetail />
+        </AuthLayout>
+      ),
+      errorElement: <RouterErrorElement />,
+    },
+    {
+      path: "/client/contracts/new",
+      element: (
+        <AuthLayout authentication={true}>
+          <ClientContractBuilder />
+        </AuthLayout>
+      ),
+      errorElement: <RouterErrorElement />,
+    },
+    {
+      path: "/client/contracts/:contractId",
+      element: (
+        <AuthLayout authentication={true}>
+          <ClientContractBuilder />
+        </AuthLayout>
+      ),
+      errorElement: <RouterErrorElement />,
+    },
+    {
+      path: "/freelancer/contracts/:contractId",
+      element: (
+        <AuthLayout authentication={true}>
+          <FreelancerContractReview />
+        </AuthLayout>
+      ),
+      errorElement: <RouterErrorElement />,
     },
     {
       path: "/complete-profile",

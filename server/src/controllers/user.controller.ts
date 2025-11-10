@@ -389,8 +389,6 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
 
   const { password, token, email }: ResetPasswordBody = req.body;
 
-  console.log(req.body);
-
   if (!password?.trim() || !token?.trim() || !email?.trim()) {
     throw new ApiError(400, "Invalid request.");
   }

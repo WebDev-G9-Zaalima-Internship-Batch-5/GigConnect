@@ -168,7 +168,6 @@ export function PostJobModal() {
       files.forEach((file) => fd.append("attachments", file));
 
       const response = await createGigWithAttachments(fd);
-      console.log("Gig created:", response);
 
       toast.success("gig posted successfully!");
       setOpen(false);

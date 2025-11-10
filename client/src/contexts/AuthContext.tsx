@@ -37,6 +37,7 @@ interface AuthContextType extends AuthState {
   logout: () => Promise<void>;
   resendVerification: () => Promise<void>;
   resetPassword: (data: ResetPasswordPayload) => Promise<void>;
+  clearError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -204,6 +205,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     },
   });
 
+  const clearError = () => {
+    setState((prev) => ({ ...prev, error: null }));
+  };
+
   // Ensure we always provide a valid context value
   const value: AuthContextType = {
     ...state,
@@ -242,6 +247,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw error;
       }
     },
+    clearError,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

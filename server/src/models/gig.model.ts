@@ -22,31 +22,25 @@ export interface IGig extends Document {
     currency: string;
   };
   duration: string;
-  expectedStartDate?: Date;
-  location: {
-    address: string;
-    city: string;
-    state: string;
-    country: string;
-    pincode: string;
-    coordinates: {
-      latitude: number;
-      longitude: number;
-    };
-    isRemote: boolean;
+  expectedStartDate: Date;
+  location?: {
+    type: "Point";
+    coordinates: [number, number]; // [longitude, latitude]
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    pincode?: string;
   };
   status: GigStatus;
   deadline?: Date;
   attachments: string[];
   requirements: string[];
   deliverables: string[];
-  applicationsCount: number;
-  viewsCount: number;
+  applicationCount: number;
+  viewCount: number;
   isUrgent: boolean;
   isFeatured: boolean;
-  preferredFreelancerLocation?: string;
-  communicationStyle?: string;
-  projectComplexity: "simple" | "moderate" | "complex";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -112,32 +106,40 @@ const GigSchema = new Schema<IGig>(
     },
     expectedStartDate: {
       type: Date,
+      required: true,
     },
     location: {
-      address: { type: String, required: true },
-      city: { type: String, required: true },
-      state: { type: String, required: true },
-      country: { type: String, required: true },
-      pincode: { type: String, required: true },
-      coordinates: {
-        latitude: { type: Number, required: true },
-        longitude: { type: Number, required: true },
+      type: {
+        type: String,
+        enum: ["Point"],
       },
-      isRemote: { type: Boolean, default: false },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        index: "2dsphere",
+      },
+      address: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      country: { type: String, trim: true },
+      pincode: { type: String, trim: true },
     },
     status: {
       type: String,
       enum: Object.values(GigStatus),
       default: GigStatus.OPEN,
+      required: true,
     },
     deadline: {
       type: Date,
     },
-    attachments: [
-      {
-        type: String,
-      },
-    ],
+    attachments: {
+      type: [
+        {
+          type: String,
+        },
+      ],
+      default: [],
+    },
     requirements: [
       {
         type: String,
@@ -150,11 +152,11 @@ const GigSchema = new Schema<IGig>(
         trim: true,
       },
     ],
-    applicationsCount: {
+    applicationCount: {
       type: Number,
       default: 0,
     },
-    viewsCount: {
+    viewCount: {
       type: Number,
       default: 0,
     },
@@ -166,26 +168,12 @@ const GigSchema = new Schema<IGig>(
       type: Boolean,
       default: false,
     },
-    preferredFreelancerLocation: {
-      type: String,
-      trim: true,
-    },
-    communicationStyle: {
-      type: String,
-      trim: true,
-    },
-    projectComplexity: {
-      type: String,
-      enum: ["simple", "moderate", "complex"],
-      required: true,
-    },
   },
   {
     timestamps: true,
   }
 );
 
-GigSchema.index({ "location.coordinates": "2dsphere" });
 GigSchema.index({ clientId: 1 });
 GigSchema.index({ status: 1 });
 GigSchema.index({ skillsRequired: 1 });

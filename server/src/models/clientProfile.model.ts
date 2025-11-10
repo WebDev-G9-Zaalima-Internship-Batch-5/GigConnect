@@ -114,9 +114,9 @@ const ClientProfileSchema = new Schema<IClientProfile>(
       default: false,
     },
     preferredBudgetRange: {
-      min: { type: Number, required: true, min: 0 },
-      max: { type: Number, required: true, min: 0 },
-      currency: { type: String, required: true },
+      min: { type: Number, min: 0 },
+      max: { type: Number, min: 0 },
+      currency: { type: String },
     },
     communicationPreferences: {
       emailNotifications: { type: Boolean, default: true },

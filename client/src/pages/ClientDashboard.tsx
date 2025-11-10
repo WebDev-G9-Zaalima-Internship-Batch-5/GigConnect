@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Plus, Users, DollarSign, Clock, Eye, MessageSquare, Star } from "lucide-react";
 import Navigation from "@/components/Navigation";
+import { PostJobModal } from "@/components/PostJobModal";
 
 const ClientDashboard = () => {
   const [activeProjects] = useState([
@@ -47,10 +48,7 @@ const ClientDashboard = () => {
               <h1 className="text-3xl font-bold text-foreground">Client Dashboard</h1>
               <p className="text-muted-foreground">Manage your projects and find talent</p>
             </div>
-            <Button variant="hero" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Post New Job
-            </Button>
+            <PostJobModal />
           </div>
 
           {/* Stats Grid */}

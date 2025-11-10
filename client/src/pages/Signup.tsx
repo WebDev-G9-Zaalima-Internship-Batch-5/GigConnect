@@ -24,7 +24,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signUpFormSchema } from "@/schemas/auth.schema";
 
 type UserRole = "freelancer" | "client";
@@ -35,9 +35,16 @@ type FormValues = z.infer<typeof formSchema>;
 
 const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const { register, loading, error } = useAuth();
+  const { register, loading, error, clearError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Clear error on component mount and location change
+  useEffect(() => {
+    if (error) {
+      clearError();
+    }
+  }, []);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),

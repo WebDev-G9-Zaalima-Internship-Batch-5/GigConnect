@@ -15,10 +15,6 @@ export interface IApplication extends Document {
   estimatedDuration: string;
   relevantExperience: string;
   portfolioSamples?: string[]; // References to portfolio items
-  questionsAnswers?: {
-    question: string;
-    answer: string;
-  }[];
   status: ApplicationStatus;
   appliedAt: Date;
   clientViewed: boolean;
@@ -58,12 +54,6 @@ const ApplicationSchema = new Schema<IApplication>({
   portfolioSamples: [
     {
       type: String,
-    },
-  ],
-  questionsAnswers: [
-    {
-      question: { type: String, required: true },
-      answer: { type: String, required: true },
     },
   ],
   status: {

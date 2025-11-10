@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,15 +24,21 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useAuth } from "@/contexts/AuthContext";
-import { useLocation } from "react-router-dom";
 
 type FormValues = z.infer<typeof loginFormSchema>;
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const { login, loading, error } = useAuth();
+  const { login, loading, error, clearError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Clear error on component mount and location change
+  useEffect(() => {
+    if (error) {
+      clearError();
+    }
+  }, []);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(loginFormSchema),

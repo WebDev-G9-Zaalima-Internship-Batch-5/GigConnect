@@ -10,8 +10,8 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
 import FindWork from "./pages/FindWork";
-import FindTalent from "./pages/FindTalent";
 import NotFound from "./pages/NotFound";
+import GigDetails from "./pages/GigDetails";
 import CompleteProfile from "./pages/CompleteProfile";
 import { AuthProvider } from "./contexts/AuthContext";
 import AuthLayout from "./components/AuthLayout";
@@ -98,8 +98,8 @@ const App = () => {
       element: <FindWork />,
     },
     {
-      path: "/find-talent",
-      element: <FindTalent />,
+      path: "/gigs/:gigId",
+      element: <GigDetails />,
     },
     {
       path: "/profile/:id?",

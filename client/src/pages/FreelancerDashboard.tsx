@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Search, DollarSign, Clock, Star, MessageSquare, Calendar, TrendingUp } from "lucide-react";
 import Navigation from "@/components/Navigation";
+import { useNavigate } from "react-router-dom";
 
 const FreelancerDashboard = () => {
+  const navigate = useNavigate();
   const [activeJobs] = useState([
     {
       id: 1,
@@ -47,7 +49,7 @@ const FreelancerDashboard = () => {
               <h1 className="text-3xl font-bold text-foreground">Freelancer Dashboard</h1>
               <p className="text-muted-foreground">Manage your gigs and find new opportunities</p>
             </div>
-            <Button variant="hero" className="gap-2">
+            <Button variant="hero" className="gap-2" onClick={() => navigate('/find-work')}>
               <Search className="h-4 w-4" />
               Find Work
             </Button>
@@ -171,17 +173,6 @@ const FreelancerDashboard = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent value="profile">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Profile Management</CardTitle>
-                  <CardDescription>Update your professional profile</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button variant="hero">Edit Profile</Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </div>
       </div>

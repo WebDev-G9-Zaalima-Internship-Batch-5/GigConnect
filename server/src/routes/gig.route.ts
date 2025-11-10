@@ -10,6 +10,7 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { checkRole } from "../middlewares/role.middleware.js";
 import { UserRole } from "../types/user.types.js";
 import applicationRouter from "./application.route.js";
+import { uploadAny } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
@@ -21,7 +22,12 @@ router.route("/").get(getAllGigs);
 router.route("/:gigId").get(getGigById);
 
 // Private routes (Client only)
-router.route("/").post(verifyJWT, checkRole([UserRole.CLIENT]), createGig);
+router.route("/").post(
+  verifyJWT,
+  checkRole([UserRole.CLIENT]),
+  uploadAny.array("attachments"),
+  createGig
+);
 router.route("/:gigId").put(verifyJWT, checkRole([UserRole.CLIENT]), updateGig);
 router.route("/:gigId").delete(verifyJWT, checkRole([UserRole.CLIENT]), deleteGig);
 

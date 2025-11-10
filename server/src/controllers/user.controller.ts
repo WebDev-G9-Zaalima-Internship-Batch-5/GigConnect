@@ -15,6 +15,7 @@ import { ClientProfile } from "../models/clientProfile.model.js";
 import { UserDoc, UserRole } from "../types/user.types.js";
 import { cookieOptions } from "../consts/cookieOptions.const.js";
 import { corsOrigin } from "../consts/cors.const.js";
+import { startSession } from "mongoose";
 
 const registerUser = asyncHandler(async (req: Request, res: Response) => {
   interface RegisterBody {
@@ -57,31 +58,50 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(409, "User with this email already exists.");
   }
 
-  const user = await User.create({
-    email,
-    password,
-    role,
-    fullName,
-  });
+    const session = await startSession();
+    session.startTransaction();
 
-  if (!user) {
-    throw new ApiError(500, "Failed to register user.");
-  }
+    let user, verificationToken;
+    try {
+        const users = await User.create([{
+            email,
+            password,
+            role,
+            fullName,
+        }], { session });
+        
+        user = users[0];
 
-  // Create a freelancer or client profile based on the user's role.
-  if (user.role === UserRole.FREELANCER) {
-    await FreelancerProfile.create({ userId: user._id });
-  } else if (user.role === UserRole.CLIENT) {
-    await ClientProfile.create({ userId: user._id });
-  }
+        if (!user) {
+            throw new ApiError(500, "Failed to register user (Transaction Step 1).");
+        }
 
-  // Send verification email
-  const verificationToken = user.generateVerificationToken();
-  const savedUser = await user.save({ validateBeforeSave: false });
+        // Create a freelancer or client profile based on the user's role.
+        if (user.role === UserRole.FREELANCER) {
+            await FreelancerProfile.create([{ userId: user._id }], { session });
+        } else if (user.role === UserRole.CLIENT) {
+            await ClientProfile.create([{ userId: user._id }], { session });
+        }
 
-  if (!savedUser) {
-    throw new ApiError(500, "Failed to register user.");
-  }
+        // 3. Generate Token and Save User (for verification email)
+        verificationToken = user.generateVerificationToken();
+        
+        // Use user.save() with the session
+        const savedUser = await user.save({ validateBeforeSave: false, session });
+
+        if (!savedUser) {
+             throw new ApiError(500, "Failed to register user (Transaction Step 3).");
+        }
+        
+        await session.commitTransaction();
+
+    } catch (error) {
+        await session.abortTransaction();
+        throw error;
+    } finally {
+        session.endSession();
+    }
+    
 
   const verificationUrl = `${process.env.BACKEND_URL}/api/v1/users/verify-email?token=${verificationToken}`;
 
@@ -147,7 +167,7 @@ const verifyUser = asyncHandler(async (req: Request, res: Response) => {
       new: true,
       runValidators: true,
       select:
-        "-password -refreshTokens -passwordResetToken -passwordResetExpiry",
+        "-password -passwordResetToken -passwordResetExpiry",
     }
   );
 

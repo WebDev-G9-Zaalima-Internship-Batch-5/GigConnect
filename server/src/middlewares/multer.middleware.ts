@@ -25,3 +25,10 @@ export const upload = multer({
     }
   },
 });
+
+export const uploadAny = multer({
+  storage,
+  limits: {
+    fileSize: 1024 * 1024 * 5,
+  },
+});

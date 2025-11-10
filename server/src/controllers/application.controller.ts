@@ -7,6 +7,7 @@ import { Notification } from "../models/notification.model.js";
 import { Contract } from "../models/contract.model.js";
 import { Gig, GigStatus } from "../models/gig.model.js";
 import mongoose from "mongoose";
+import { corsOrigin } from "../consts/cors.const.js";
 
 // @desc    Apply for a gig
 // @route   POST /api/v1/gigs/:gigId/applications/apply
@@ -14,7 +15,7 @@ import mongoose from "mongoose";
 const applyForGig = asyncHandler(async (req: Request, res: Response) => {
     const { gigId } = req.params;
     const freelancerId = req.user?._id;
-    const { coverLetter, proposedRate, estimatedDuration } = req.body;
+    const { coverLetter, proposedRate, estimatedDuration, relevantExperience } = req.body;
 
     if (!mongoose.isValidObjectId(gigId)) {
         throw new ApiError(400, "Invalid gig ID");
@@ -34,19 +35,40 @@ const applyForGig = asyncHandler(async (req: Request, res: Response) => {
         throw new ApiError(409, "You have already applied for this gig");
     }
 
+    // Basic payload validations
+    if (!coverLetter || typeof coverLetter !== 'string' || coverLetter.trim() === '') {
+        throw new ApiError(400, "Cover letter is required");
+    }
+    const rateNum = Number(proposedRate);
+    if (!Number.isFinite(rateNum) || rateNum <= 0) {
+        throw new ApiError(400, "proposedRate must be a positive number");
+    }
+    if (!estimatedDuration || typeof estimatedDuration !== 'string' || estimatedDuration.trim() === '') {
+        throw new ApiError(400, "estimatedDuration is required");
+    }
+    if (!relevantExperience || typeof relevantExperience !== 'string' || relevantExperience.trim() === '') {
+        throw new ApiError(400, "relevantExperience is required");
+    }
+
     const application = await Application.create({
         gigId,
         freelancerId,
-        coverLetter,
-        proposedRate,
-        estimatedDuration
+        coverLetter: String(coverLetter).trim(),
+        proposedRate: rateNum,
+        estimatedDuration: String(estimatedDuration).trim(),
+        relevantExperience: String(relevantExperience).trim(),
     });
 
         // Create a notification for the client
     await Notification.create({
         userId: gig.clientId,
+        userRole: "client",
+        title: "New Application",
         message: `You have a new application for your gig: ${gig.title}`,
-        link: `/gigs/${gig._id}/applications`
+        type: "gig_application",
+        relatedId: application._id,
+        actionUrl: `${corsOrigin}/gigs/${gig._id}/applications`,
+        isRead: false,
     });
 
     return res.status(201).json(new ApiResponse(201, application, "Application submitted successfully"));

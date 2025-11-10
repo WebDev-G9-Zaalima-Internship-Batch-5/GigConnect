@@ -45,7 +45,7 @@ const UserDropdown = () => {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.avatar} alt={user.fullName} />
+            <AvatarImage src={user.avatar?.url} alt={user.fullName} />
             <AvatarFallback className="bg-primary/10 text-primary">
               {getInitials(user.fullName)}
             </AvatarFallback>
@@ -110,26 +110,18 @@ const Navigation = () => {
 
             {/* Desktop Navigation */}
             <div className="hidden md-nav:flex items-center space-x-8">
-              <Link
-                to="/find-work"
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  isActive("/find-work")
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                }`}
-              >
-                Find Work
-              </Link>
-              <Link
-                to="/find-talent"
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  isActive("/find-talent")
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                }`}
-              >
-                Find Talent
-              </Link>
+              {(!user || user.role === "freelancer") && (
+                <Link
+                  to="/find-work"
+                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                    isActive("/find-work")
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  Find Work
+                </Link>
+              )}
               <Link
                 to="/how-it-works"
                 className={`text-sm font-medium transition-colors hover:text-primary ${
@@ -215,13 +207,6 @@ const MobileMenu = ({ isOpen, onClose, isAuthenticated, user }) => {
           onClick={onClose}
         >
           Find Work
-        </Link>
-        <Link
-          to="/find-talent"
-          className="block px-3 py-2 text-base font-medium text-muted-foreground hover:text-primary"
-          onClick={onClose}
-        >
-          Find Talent
         </Link>
         <Link
           to="/how-it-works"

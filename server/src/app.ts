@@ -31,12 +31,6 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
 
-// swagger route
-if (process.env.NODE_ENV === "development") {
-  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-  console.log("Swagger docs available at /api-docs");
-}
-
 // routes
 
 import userRouter from "./routes/user.route.js";
@@ -48,6 +42,7 @@ import messageRouter from "./routes/message.route.js";
 // import paymentRouter from "./routes/payment.route.js";
 import notificationRouter from "./routes/notification.route.js";
 import healthcheckRouter from "./routes/healthcheck.route.js";
+import dashboardRouter from "./routes/dashboard.route.js";
 
 app.use("/api/v1/healthcheck", healthcheckRouter);
 app.use("/api/v1/users", userRouter);
@@ -58,6 +53,7 @@ app.use("/api/v1/reviews", reviewRouter);
 app.use("/api/v1/messages", messageRouter);
 // app.use("/api/v1/payments", paymentRouter);
 app.use("/api/v1/notifications", notificationRouter);
+app.use("/api/v1/dashboard", dashboardRouter);
 
 // error handling
 app.use(errorHandler);
